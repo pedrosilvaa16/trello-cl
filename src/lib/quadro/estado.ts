@@ -3,7 +3,9 @@ import type { Cartao, Etiqueta, Lista, Quadro } from "../supabase/tipos";
 import type { CartaoCompleto, DadosQuadro, MembroComPerfil } from "./tipos";
 
 export type EstadoQuadro = {
-  quadro: Quadro;
+  /* `imagem` é o URL já assinado do fundo, como vem de `carregarQuadro` — as
+     colunas guardam a chave no R2, e assinar é trabalho do servidor. */
+  quadro: Quadro & { imagem: string | null };
   listas: Lista[];
   cartoes: CartaoCompleto[];
   etiquetas: Etiqueta[];

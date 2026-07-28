@@ -12,6 +12,8 @@ import type { CartaoCompleto, MembroComPerfil } from "@/lib/quadro/tipos";
 import type { Etiqueta } from "@/lib/supabase/tipos";
 import { cn } from "@/lib/utils";
 
+import { estiloDaCapa, temCapa } from "./capa-cartao";
+
 type Props = {
   cartao: CartaoCompleto;
   etiquetas: Etiqueta[];
@@ -39,6 +41,27 @@ export function CartaoMini({
   const temRodape =
     !!estado || pessoas.length > 0 || cartao.nComentarios > 0 || cartao.nAnexos > 0;
 
+  /*
+    Os dois tamanhos de capa são dois cartões diferentes, não uma variação de
+    estilo. A completa ocupa tudo e leva o título por cima; a de faixa é uma
+    tira no topo e o cartão continua o que era.
+  */
+  const comCapa = temCapa(cartao);
+  const capaCompleta = comCapa && cartao.capa_tamanho === "completa";
+  const capaEmFaixa = comCapa && !capaCompleta;
+
+  if (capaCompleta) {
+    return (
+      <CartaoComCapaCompleta
+        cartao={cartao}
+        aoAbrir={aoAbrir}
+        aoAlternarConcluido={aoAlternarConcluido}
+        editavel={editavel}
+        aSerArrastado={aSerArrastado}
+      />
+    );
+  }
+
   return (
     <article
       className={cn(
@@ -50,24 +73,26 @@ export function CartaoMini({
       )}
     >
       {/*
-        A capa vai acima de tudo e sangra até à borda do cartão, como na Trello.
-        `aria-hidden`: é identidade visual, não informação — quem usa leitor de
-        ecrã não ganha nada com "imagem" repetido trinta vezes na coluna.
-
-        O `?v=` é o instante da última alteração do cartão: troca a capa e o URL
-        muda com ela, sem o qual o browser continuava a servir a imagem antiga
-        da cache.
+        Capa em faixa: uma tira no topo, a sangrar até à borda, e o cartão
+        continua a ler-se por baixo. `aria-hidden` — é identidade visual, não
+        informação, e quem usa leitor de ecrã não ganha nada com "imagem"
+        repetido trinta vezes na coluna.
       */}
-      {cartao.imagem_destaque && (
-        <div className="-mx-2 -mt-2 mb-2 overflow-hidden rounded-t-cartao bg-superficie-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/cartoes/${cartao.id}/imagem?v=${encodeURIComponent(cartao.atualizado_em)}`}
-            alt=""
-            aria-hidden
-            loading="lazy"
-            className="block h-28 w-full object-cover"
-          />
+      {capaEmFaixa && (
+        <div
+          className="-mx-2 -mt-2 mb-2 h-12 overflow-hidden rounded-t-cartao bg-superficie-2"
+          style={estiloDaCapa(cartao)}
+        >
+          {cartao.capa_anexo_id && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/api/anexos/${cartao.capa_anexo_id}`}
+              alt=""
+              aria-hidden
+              loading="lazy"
+              className="block size-full object-cover"
+            />
+          )}
         </div>
       )}
 
@@ -163,6 +188,119 @@ export function CartaoMini({
           )}
         </div>
       )}
+    </article>
+  );
+}
+
+/**
+ * O cartão com capa completa: a imagem (ou a cor) é o cartão, e o título vai
+ * por cima.
+ *
+ * As etiquetas e o rodapé não aparecem — é a troca que se faz de propósito ao
+ * escolher este tamanho, e é o que a Trello faz. Quem precisa das datas e dos
+ * contadores de relance usa a capa em faixa; quem escolhe esta quer a imagem.
+ *
+ * O `min-h` garante que uma capa de cor, que não tem imagem a dar-lhe altura,
+ * continua a ser um retângulo com presença e não uma linha de texto colorida.
+ */
+function CartaoComCapaCompleta({
+  cartao,
+  aoAbrir,
+  aoAlternarConcluido,
+  editavel,
+  aSerArrastado,
+}: {
+  cartao: CartaoCompleto;
+  aoAbrir: (id: string) => void;
+  aoAlternarConcluido?: (id: string, concluido: boolean) => void;
+  editavel: boolean;
+  aSerArrastado: boolean;
+}) {
+  const claro = cartao.capa_texto === "claro";
+
+  return (
+    <article
+      className={cn(
+        "group/cartao relative min-h-24 overflow-hidden rounded-cartao border border-borda text-left shadow-sm",
+        "transition-[border-color,box-shadow] duration-[var(--duracao-rapida)]",
+        "hover:border-borda-forte",
+        aSerArrastado && "rotate-1 cursor-grabbing shadow-xl",
+        cartao.concluido && "opacity-70",
+      )}
+      style={estiloDaCapa(cartao)}
+    >
+      {cartao.capa_anexo_id && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/anexos/${cartao.capa_anexo_id}`}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          className="absolute inset-0 size-full object-cover"
+        />
+      )}
+
+      {/*
+        O véu existe para o título se ler sobre uma fotografia qualquer. Sem
+        ele, o contraste depende da imagem que alguém escolheu — que é o mesmo
+        que não haver contraste garantido nenhum.
+      */}
+      {cartao.capa_anexo_id && (
+        <span
+          aria-hidden
+          className={cn(
+            "absolute inset-0",
+            claro
+              ? "bg-gradient-to-t from-black/70 via-black/25 to-transparent"
+              : "bg-gradient-to-t from-white/75 via-white/30 to-transparent",
+          )}
+        />
+      )}
+
+      <div className="relative flex min-h-24 items-end gap-1.5 p-2">
+        {editavel && aoAlternarConcluido && (
+          <button
+            type="button"
+            onClick={(evento) => {
+              evento.stopPropagation();
+              aoAlternarConcluido(cartao.id, !cartao.concluido);
+            }}
+            aria-pressed={cartao.concluido}
+            aria-label={
+              cartao.concluido
+                ? `Marcar «${cartao.titulo}» como por fazer`
+                : `Marcar «${cartao.titulo}» como concluído`
+            }
+            className={cn(
+              "mb-0.5 grid size-4 shrink-0 place-items-center rounded-full border transition-colors",
+              cartao.concluido
+                ? "border-sucesso bg-[var(--cor-sucesso)] text-white"
+                : cn(
+                    "opacity-0 group-hover/cartao:opacity-100 focus-visible:opacity-100",
+                    claro ? "border-white/80" : "border-black/50",
+                  ),
+            )}
+          >
+            {cartao.concluido && <Check className="size-3" aria-hidden />}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => aoAbrir(cartao.id)}
+          className="min-w-0 flex-1 text-left after:absolute after:inset-0 after:content-['']"
+        >
+          <span
+            className={cn(
+              "block text-sm leading-snug font-semibold",
+              claro ? "text-white" : "text-[#172b4d]",
+              cartao.concluido && "line-through",
+            )}
+          >
+            {cartao.titulo}
+          </span>
+        </button>
+      </div>
     </article>
   );
 }

@@ -75,17 +75,38 @@ export async function carregarQuadro(
 
   const idsListas = (listas ?? []).map((lista) => lista.id);
 
-  // Uma consulta só para os cartões e as duas ligações: sem isto seriam três
-  // idas ao servidor e um quadro grande notava-se logo na abertura.
-  const { data: cartoes } = idsListas.length
+  /*
+    Uma consulta só para os cartões e as duas ligações: sem isto seriam três
+    idas ao servidor e um quadro grande notava-se logo na abertura.
+
+    `attachments!attachments_card_id_fkey` e não `attachments`: desde que a
+    capa do cartão existe, há DUAS chaves estrangeiras entre estas tabelas —
+    `attachments.card_id` (os anexos de um cartão) e `cards.capa_anexo_id` (o
+    anexo que serve de capa). Sem dizer qual, o PostgREST recusa a consulta
+    inteira com PGRST201 e o quadro abre sem cartão nenhum.
+  */
+  const { data: cartoes, error: erroCartoes } = idsListas.length
     ? await supabase
         .from("cards")
         .select(
-          "*, card_labels(label_id), card_members(user_id), comments(count), attachments(count)",
+          "*, card_labels(label_id), card_members(user_id), comments(count), attachments!attachments_card_id_fkey(count)",
         )
         .in("list_id", idsListas)
         .order("posicao")
-    : { data: [] };
+    : { data: [], error: null };
+
+  /*
+    Um quadro com listas e sem cartões nenhuns é indistinguível, no ecrã, de um
+    quadro vazio — e foi assim que uma consulta partida passou despercebida.
+    Falhar alto é a diferença entre um erro que se vê e um que se descobre
+    dias depois.
+  */
+  if (erroCartoes) {
+    console.error("Falha a carregar os cartões do quadro:", erroCartoes);
+    throw new Error(
+      `Não foi possível carregar os cartões deste quadro: ${erroCartoes.message}`,
+    );
+  }
 
   const [quadroComImagem] = await comImagens([quadro], "imagem_fundo");
 

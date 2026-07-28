@@ -15,7 +15,26 @@ export type PapelQuadro = "gestor" | "editor" | "comentador" | "leitor";
 /** Eixo A — o que a pessoa pode fazer no sistema, fora dos quadros. */
 export type PapelGlobal = "super_admin" | "admin" | "externo";
 
+/*
+  A paleta vive em `lib/cores.ts`, que é quem a declara uma vez para as
+  etiquetas, os quadros e agora as capas. O CHECK na base de dados tem a mesma
+  lista — é o preço de a paleta ser um nome e não um hexadecimal, e é barato
+  ao pé de ter de migrar dados para mudar uma cor.
+*/
+import type { CorEtiqueta } from "../cores";
+
 type Timestamptz = string;
+
+/** `faixa` = tira no topo; `completa` = capa no cartão todo, título por cima. */
+export type TamanhoCapa = "faixa" | "completa";
+
+/** O estado completo da capa de um cartão. Uma cor ou um anexo, nunca os dois. */
+export type Capa = {
+  capa_cor: CorEtiqueta | null;
+  capa_anexo_id: string | null;
+  capa_tamanho: TamanhoCapa;
+  capa_texto: "claro" | "escuro";
+};
 
 export type Database = {
   public: {
@@ -135,8 +154,12 @@ export type Database = {
           data_limite: Timestamptz | null;
           concluido: boolean;
           arquivado: boolean;
-          /** Chave no R2 da imagem de destaque. Nula quando o cartão não tem. */
-          imagem_destaque: string | null;
+          /* A capa: uma cor da paleta OU um anexo de imagem do cartão, nunca
+             as duas. `capa_texto` só conta quando o tamanho é 'completa'. */
+          capa_cor: CorEtiqueta | null;
+          capa_anexo_id: string | null;
+          capa_tamanho: TamanhoCapa;
+          capa_texto: "claro" | "escuro";
           criado_por: string | null;
           criado_em: Timestamptz;
           atualizado_em: Timestamptz;
@@ -153,10 +176,11 @@ export type Database = {
           criado_por?: string | null;
         };
         /*
-          `imagem_destaque` não está aqui de propósito, e não é esquecimento: o
-          GRANT de coluna na base de dados recusa que ela seja escrita por um
-          UPDATE normal. Só `definir_imagem_cartao` lhe mexe. Pô-la aqui era
-          prometer uma escrita que o servidor não deixa acontecer.
+          As colunas `capa_*` não estão aqui de propósito, e não é
+          esquecimento: o GRANT de coluna na base de dados recusa que sejam
+          escritas por um UPDATE normal. Só `definir_capa_cartao` lhes mexe.
+          Pô-las aqui era prometer uma escrita que o servidor não deixa
+          acontecer.
         */
         Update: {
           list_id?: string;
@@ -462,10 +486,31 @@ export type Database = {
         Args: { p_alvo: string };
         Returns: ResumoEliminacao;
       };
-      definir_imagem_cartao: {
-        Args: { p_cartao: string; p_chave?: string | null };
-        /** `anterior` é a chave que lá estava, para o R2 poder ser limpo. */
-        Returns: { anterior: string | null; chave: string | null };
+      definir_imagem_quadro: {
+        Args: {
+          p_quadro: string;
+          p_fundo?: string | null;
+          p_miniatura?: string | null;
+          p_brilho?: "claro" | "escuro" | null;
+        };
+        /** As `_anterior` são as chaves que lá estavam, para o R2 ser limpo. */
+        Returns: {
+          fundo_anterior: string | null;
+          miniatura_anterior: string | null;
+          imagem_fundo: string | null;
+          imagem_miniatura: string | null;
+          brilho_fundo: "claro" | "escuro" | null;
+        };
+      };
+      definir_capa_cartao: {
+        Args: {
+          p_cartao: string;
+          p_cor?: string | null;
+          p_anexo?: string | null;
+          p_tamanho?: TamanhoCapa;
+          p_texto?: "claro" | "escuro";
+        };
+        Returns: Capa;
       };
       definir_membro_quadro: {
         Args: { p_quadro: string; p_utilizador: string; p_papel: PapelQuadro };

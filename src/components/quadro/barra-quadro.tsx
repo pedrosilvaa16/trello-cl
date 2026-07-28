@@ -3,6 +3,7 @@
 import {
   Archive,
   ArchiveRestore,
+  Image as ImageIcon,
   Keyboard,
   MoreHorizontal,
   Tag,
@@ -35,6 +36,7 @@ import { Arquivo } from "./arquivo";
 import { ATALHOS } from "./atalhos";
 import { Compositor } from "./compositor";
 import { GestorEtiquetas } from "./etiquetas";
+import { ImagemDoQuadro } from "./imagem-quadro";
 import { BarraFiltros } from "./filtros";
 import { GestorMembros } from "./membros";
 
@@ -56,6 +58,7 @@ export function BarraQuadro({
   const router = useRouter();
   const editavel = podeEditar(papel);
   const gestor = eGestor(papel);
+  const [imagemAberta, definirImagemAberta] = React.useState(false);
 
   const [aRenomear, definirARenomear] = React.useState(false);
   const [membrosAberto, definirMembrosAberto] = React.useState(false);
@@ -195,6 +198,9 @@ export function BarraQuadro({
               {gestor && (
                 <>
                   <SeparadorMenu />
+                  <ItemMenu onSelect={() => definirImagemAberta(true)}>
+                    <ImageIcon /> Imagem do quadro
+                  </ItemMenu>
                   <ItemMenu onSelect={alternarArquivo}>
                     {estado.quadro.arquivado ? <ArchiveRestore /> : <Archive />}
                     {estado.quadro.arquivado
@@ -210,6 +216,15 @@ export function BarraQuadro({
           </Menu>
         </div>
       </div>
+
+      <ImagemDoQuadro
+        aberto={imagemAberta}
+        aoMudarAberto={definirImagemAberta}
+        idQuadro={estado.quadro.id}
+        nomeQuadro={estado.quadro.nome}
+        cor={estado.quadro.cor}
+        imagemAtual={estado.quadro.imagem}
+      />
 
       <GestorMembros
         aberto={membrosAberto}

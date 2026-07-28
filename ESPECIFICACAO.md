@@ -236,13 +236,20 @@ trabalho.
   secção 3.4. O upload vai do browser direto para o Storage, protegido pelas
   políticas do bucket — passar 25 MB por uma função serverless esbarraria no
   limite de corpo do pedido da Vercel.
-- **Imagem de destaque do cartão** (`cards.imagem_destaque`). Segue a do quadro:
-  chave no R2, servida por URL assinado. É de **quem gere o quadro**, e não de
-  quem edita o cartão — é identidade visual, não conteúdo. Para isso ser
-  verdade e não só aparência, a coluna está fora do `GRANT` de UPDATE de
-  `cards` e só muda por `definir_imagem_cartao`; a política de UPDATE, sozinha,
-  deixaria qualquer editor lá escrever. Mesma técnica que
-  `profiles.papel_global` usa. A imagem é reduzida no browser antes de subir.
+- **Capa do cartão** (`cards.capa_*`). Uma cor da paleta **ou** uma imagem, em
+  faixa (tira no topo) ou completa (capa no cartão todo, título por cima) —
+  como na Trello. A imagem é **um anexo do próprio cartão**, e não um ficheiro
+  à parte: é o que faz apagar o anexo limpar a capa sozinho, pelo
+  `on delete set null`, sem uma segunda regra a ter de se lembrar disso.
+- **A capa e a imagem do quadro são de quem gere o quadro**, e não de quem
+  edita — são identidade visual, não conteúdo. Para isso ser verdade e não só
+  aparência, as colunas (`cards.capa_*`, `boards.imagem_*`, `brilho_fundo`)
+  estão fora do `GRANT` de UPDATE das tabelas e só mudam por
+  `definir_capa_cartao` e `definir_imagem_quadro`; as políticas de UPDATE,
+  sozinhas, deixariam qualquer editor lá escrever. Mesma técnica que
+  `profiles.papel_global` usa. As imagens são reduzidas no browser antes de
+  subir, e a do quadro sobe em duas versões (fundo e miniatura) com o brilho
+  medido a partir dos píxeis.
 
 ---
 

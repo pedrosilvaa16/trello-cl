@@ -4,6 +4,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 import { criarClienteNavegador } from "../supabase/navegador";
 import type {
+  Capa,
   Convite,
   Database,
   Etiqueta,
@@ -121,63 +122,96 @@ export async function moverCartao(
   return data as number;
 }
 
-/* ------------------------------------------------ imagem de destaque -- */
+/* --------------------------------------------------- capa do cartão -- */
+
+/** Uma capa vazia: é o que fica quando se carrega em «Remover capa». */
+export const SEM_CAPA: Capa = {
+  capa_cor: null,
+  capa_anexo_id: null,
+  capa_tamanho: "faixa",
+  capa_texto: "claro",
+};
 
 /**
- * Põe ou troca a imagem de destaque de um cartão.
+ * Põe, troca ou tira a capa. Recebe o estado completo, não uma alteração.
  *
- * Três passos, como os anexos: pedir autorização, enviar direto para o R2,
- * confirmar. O ficheiro nunca passa pelo servidor da aplicação.
- *
- * Ao contrário do resto deste ficheiro, isto não vai pelo cliente do browser
- * ao Postgres — vai por rotas nossas, porque as credenciais do R2 vivem só no
- * servidor e a chave do objeto não pode ser decidida aqui.
+ * Trocar uma cor por uma imagem é uma escrita só, e nunca há um instante em
+ * que o cartão tenha as duas. A função em SQL recusa quem não gere o quadro.
  */
-export async function definirCapa(
+export async function definirCapa(idCartao: string, capa: Capa): Promise<Capa> {
+  const { data, error } = await bd().rpc("definir_capa_cartao", {
+    p_cartao: idCartao,
+    p_cor: capa.capa_cor,
+    p_anexo: capa.capa_anexo_id,
+    p_tamanho: capa.capa_tamanho,
+    p_texto: capa.capa_texto,
+  });
+  rebentar(error, "guardar a capa");
+  return data as Capa;
+}
+
+/**
+ * Carrega uma imagem e deixa-a como capa.
+ *
+ * A imagem entra como anexo do cartão — é o que a Trello faz, e é o que faz
+ * apagar o anexo limpar a capa sem ninguém ter de se lembrar disso. O envio é
+ * o mesmo dos outros anexos: autorização no servidor, ficheiro direto para o
+ * R2, registo no fim.
+ */
+export async function carregarCapa(
   idCartao: string,
   imagem: { ficheiro: Blob; nomeFicheiro: string; tipoMime: string },
-): Promise<string> {
-  const autorizacao = await pedir(`/api/cartoes/${idCartao}/imagem`, {
+  idAutor: string,
+  capa: Omit<Capa, "capa_cor" | "capa_anexo_id">,
+): Promise<{ anexo: AnexoComAutor; capa: Capa }> {
+  const autorizacao = await fetch("/api/anexos/upload", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      nomeFicheiro: imagem.nomeFicheiro,
+      cartao: idCartao,
+      nomeFicheiro: imagem.nomeFicheiro.slice(0, 255),
       tamanho: imagem.ficheiro.size,
       tipoMime: imagem.tipoMime,
     }),
   });
 
-  const envio = await fetch(autorizacao.url, {
+  if (!autorizacao.ok) {
+    const corpo = await autorizacao.json().catch(() => ({}));
+    throw new Error(
+      corpo.erro ??
+        "O envio foi recusado. Confirma que ainda tens permissão neste quadro.",
+    );
+  }
+
+  const { id, chave, url } = await autorizacao.json();
+
+  const envio = await fetch(url, {
     method: "PUT",
     body: imagem.ficheiro,
     headers: { "Content-Type": imagem.tipoMime },
   });
   if (!envio.ok) {
-    throw new Error("O envio da imagem para o armazenamento falhou.");
+    throw new Error("A imagem não chegou ao armazenamento. Tenta outra vez.");
   }
 
-  await pedir(`/api/cartoes/${idCartao}/imagem`, {
-    method: "PUT",
-    body: JSON.stringify({ chave: autorizacao.chave }),
+  const anexo = await registarAnexo({
+    id,
+    card_id: idCartao,
+    nome_ficheiro: imagem.nomeFicheiro.slice(0, 255),
+    caminho_storage: chave,
+    tamanho_bytes: imagem.ficheiro.size,
+    tipo_mime: imagem.tipoMime,
+    carregado_por: idAutor,
   });
 
-  return autorizacao.chave as string;
-}
-
-export async function removerCapa(idCartao: string) {
-  await pedir(`/api/cartoes/${idCartao}/imagem`, { method: "DELETE" });
-}
-
-/** As rotas de gestão respondem sempre `{ erro }` com uma mensagem legível. */
-async function pedir(caminho: string, opcoes: RequestInit) {
-  const resposta = await fetch(caminho, {
-    headers: { "Content-Type": "application/json" },
-    ...opcoes,
-  });
-  const corpo = await resposta.json().catch(() => ({}));
-  if (!resposta.ok) {
-    throw new Error(corpo.erro ?? "Não foi possível concluir a operação.");
-  }
-  return corpo;
+  return {
+    anexo,
+    capa: await definirCapa(idCartao, {
+      ...capa,
+      capa_cor: null,
+      capa_anexo_id: anexo.id,
+    }),
+  };
 }
 
 /** Relê as posições de uma lista — usado depois de o servidor reequilibrar. */

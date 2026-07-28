@@ -34,7 +34,7 @@ import type { PapelQuadro, Perfil } from "@/lib/supabase/tipos";
 import { cn } from "@/lib/utils";
 
 import { Anexos } from "./anexos";
-import { CapaCartao } from "./capa-cartao";
+import { IconeImagem, PainelCapa, estiloDaCapa, temCapa } from "./capa-cartao";
 import { Comentarios } from "./comentarios";
 import { Compositor } from "./compositor";
 import { AcessosCartao } from "./acessos-cartao";
@@ -66,6 +66,7 @@ export function DetalheCartao({
   const [aEditarDescricao, definirAEditarDescricao] = React.useState(false);
   const [gerirEtiquetas, definirGerirEtiquetas] = React.useState(false);
   const [gerirAcessos, definirGerirAcessos] = React.useState(false);
+  const [aCapa, definirACapa] = React.useState(false);
   const confirmacao = useConfirmacao();
 
   const lista = estado.listas.find((l) => l.id === cartao.list_id);
@@ -182,6 +183,47 @@ export function DetalheCartao({
               {lista && <> · {lista.nome}</>}
             </p>
           </div>
+          {/*
+            A capa é de quem gere o quadro, e não de quem edita o cartão — é
+            identidade visual, e a decisão está registada na migração
+            20260728190000. Quem não gere vê a capa e não vê este botão.
+          */}
+          {papel === "gestor" && (
+            <Popover open={aCapa} onOpenChange={definirACapa}>
+              <AbrirPopover asChild>
+                <Botao
+                  variante="fantasma"
+                  tamanho="iconePequeno"
+                  aria-label="Capa do cartão"
+                >
+                  <IconeImagem />
+                </Botao>
+              </AbrirPopover>
+              <ConteudoPopover align="end">
+                <PainelCapa
+                  idCartao={cartao.id}
+                  capa={cartao}
+                  utilizadorId={utilizador.id}
+                  aoAnexar={() =>
+                    despachar({
+                      tipo: "cartao:alterar",
+                      id: cartao.id,
+                      campos: { nAnexos: cartao.nAnexos + 1 },
+                    })
+                  }
+                  aoMudar={(capa) =>
+                    despachar({
+                      tipo: "cartao:alterar",
+                      id: cartao.id,
+                      campos: capa,
+                    })
+                  }
+                  aoFechar={() => definirACapa(false)}
+                />
+              </ConteudoPopover>
+            </Popover>
+          )}
+
           <Botao
             variante="fantasma"
             tamanho="iconePequeno"
@@ -191,6 +233,24 @@ export function DetalheCartao({
             <X />
           </Botao>
         </header>
+
+        {/* A capa, à cabeça do painel: é o que ela é no quadro, e é onde se
+            espera vê-la ao abrir o cartão. */}
+        {temCapa(cartao) && (
+          <div
+            className="h-32 shrink-0 overflow-hidden bg-superficie-2"
+            style={estiloDaCapa(cartao)}
+          >
+            {cartao.capa_anexo_id && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/anexos/${cartao.capa_anexo_id}`}
+                alt="Capa do cartão"
+                className="size-full object-cover"
+              />
+            )}
+          </div>
+        )}
 
         <div className="barra-fina min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4">
           {/* Título */}
@@ -381,31 +441,6 @@ export function DetalheCartao({
               </div>
             </Campo>
           </div>
-
-          {/*
-            A capa é do gestor do quadro, e não de quem edita o cartão — é
-            identidade visual, e a decisão está registada na migração
-            20260728180000. Quem não gere vê a imagem e não vê os botões.
-          */}
-          <CapaCartao
-            idCartao={cartao.id}
-            chave={cartao.imagem_destaque}
-            atualizadoEm={cartao.atualizado_em}
-            gerivel={papel === "gestor"}
-            aoMudar={(imagem_destaque) =>
-              despachar({
-                tipo: "cartao:alterar",
-                id: cartao.id,
-                campos: {
-                  imagem_destaque,
-                  // O servidor tocou no `atualizado_em`; acompanhar aqui é o
-                  // que faz o browser ir buscar a imagem nova em vez da cache.
-                  // O valor certo chega logo a seguir pelo Realtime.
-                  atualizado_em: new Date().toISOString(),
-                },
-              })
-            }
-          />
 
           {/* Descrição */}
           <section className="space-y-2">

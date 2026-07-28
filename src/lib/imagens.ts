@@ -92,3 +92,103 @@ export async function prepararCapa(ficheiro: File): Promise<ImagemPreparada> {
 function trocarExtensao(nome: string, extensao: string) {
   return `${nome.replace(/\.[^./\\]+$/, "")}.${extensao}`;
 }
+
+/* -------------------------------------------------- imagem do quadro -- */
+
+/** O fundo do quadro é visto em ecrã inteiro; a miniatura num cartão de 280px. */
+const LARGURA_FUNDO = 1920;
+const LARGURA_MINIATURA = 640;
+
+export type ImagemDoQuadro = {
+  fundo: Blob;
+  miniatura: Blob;
+  nomeFicheiro: string;
+  tipoMime: string;
+  /** O que a imagem é, para a interface escolher o véu de contraste. */
+  brilho: "claro" | "escuro";
+};
+
+/**
+ * Prepara a imagem de um quadro: duas versões e o brilho.
+ *
+ * Duas versões porque servir 1920px numa miniatura de 280px é mandar
+ * megabytes para não se verem — e a lista de quadros mostra-as todas de uma
+ * vez. O brilho sai daqui porque é aqui que os píxeis existem: pedir a quem
+ * carrega a imagem que classifique a própria fotografia seria pedir trabalho
+ * que a máquina faz melhor.
+ */
+export async function prepararImagemDoQuadro(
+  ficheiro: File,
+): Promise<ImagemDoQuadro> {
+  const bitmap = await createImageBitmap(ficheiro);
+
+  try {
+    const fundo = await redimensionar(bitmap, LARGURA_FUNDO);
+    const miniatura = await redimensionar(bitmap, LARGURA_MINIATURA);
+
+    return {
+      fundo: fundo ?? ficheiro,
+      miniatura: miniatura ?? fundo ?? ficheiro,
+      nomeFicheiro: trocarExtensao(ficheiro.name, "webp"),
+      tipoMime: fundo ? "image/webp" : ficheiro.type || "image/jpeg",
+      brilho: medirBrilho(bitmap),
+    };
+  } finally {
+    bitmap.close();
+  }
+}
+
+function desenhar(bitmap: ImageBitmap, largura: number) {
+  const escala = Math.min(1, largura / bitmap.width);
+  const tela = document.createElement("canvas");
+  tela.width = Math.round(bitmap.width * escala);
+  tela.height = Math.round(bitmap.height * escala);
+
+  const pincel = tela.getContext("2d", { willReadFrequently: true });
+  if (!pincel) return null;
+
+  pincel.drawImage(bitmap, 0, 0, tela.width, tela.height);
+  return { tela, pincel };
+}
+
+async function redimensionar(bitmap: ImageBitmap, largura: number) {
+  const desenhada = desenhar(bitmap, largura);
+  if (!desenhada) return null;
+
+  return new Promise<Blob | null>((resolver) =>
+    desenhada.tela.toBlob(resolver, "image/webp", QUALIDADE),
+  );
+}
+
+/**
+ * Clara ou escura, pela luminância média.
+ *
+ * A amostra é uma versão minúscula da imagem: 32px de largura chegam para a
+ * média e poupam ler milhões de píxeis. A fórmula é a da luminância percebida
+ * — o verde pesa mais do que o azul porque o olho o vê mais.
+ */
+function medirBrilho(bitmap: ImageBitmap): "claro" | "escuro" {
+  const desenhada = desenhar(bitmap, 32);
+  if (!desenhada) return "escuro";
+
+  const { tela, pincel } = desenhada;
+  try {
+    const { data } = pincel.getImageData(0, 0, tela.width, tela.height);
+    let total = 0;
+    let contados = 0;
+
+    for (let i = 0; i < data.length; i += 4) {
+      // Píxeis quase transparentes não dizem nada sobre o que se vai ver.
+      if (data[i + 3] < 16) continue;
+      total += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+      contados++;
+    }
+
+    if (!contados) return "escuro";
+    return total / contados > 140 ? "claro" : "escuro";
+  } catch {
+    // Canvas «sujo» por uma imagem de outra origem. Não acontece com ficheiros
+    // escolhidos pelo utilizador, mas falhar por isto seria absurdo.
+    return "escuro";
+  }
+}
