@@ -1971,12 +1971,12 @@ where exists (
 
 -- O super_admin é um. Se a conta ainda não existir neste ambiente (local, ou
 -- um projeto novo), isto não faz nada e o papel dá-se depois com
--- `npm run papel-global`.
+-- `npm run papel-global -- <email> super_admin`.
 update public.profiles p
 set papel_global = 'super_admin'
 from auth.users u
 where u.id = p.id
-  and lower(u.email) = 'geralcreativelinedesign@gmail.com';
+  and lower(u.email) = 'cozinharte.pt@gmail.com';
 
 -- ---------------------------------------------------------------------------
 -- Tempo real
