@@ -10,9 +10,14 @@ import { Campo } from "@/components/ui/campo";
 import { Emblema } from "@/components/ui/emblema";
 import { Vazio } from "@/components/ui/vazio";
 import { NOMES_PAPEL_GLOBAL } from "@/lib/quadro/tipos";
-import type { PapelGlobal, Perfil, PessoaNaLista } from "@/lib/supabase/tipos";
+import type {
+  PapelGlobal,
+  Perfil,
+  PessoaNaLista,
+  QuadroGerido,
+} from "@/lib/supabase/tipos";
 
-import { ConvidarPessoa, type QuadroParaConvite } from "./convidar-pessoa";
+import { ConvidarPessoa } from "./convidar-pessoa";
 
 type FiltroPapel = PapelGlobal | "todos";
 type FiltroEstado = "todos" | "ativos" | "desativados";
@@ -30,7 +35,7 @@ export function PainelPessoas({
   euProprio,
 }: {
   pessoas: PessoaNaLista[];
-  quadros: QuadroParaConvite[];
+  quadros: QuadroGerido[];
   euProprio: Perfil;
 }) {
   const [texto, definirTexto] = React.useState("");

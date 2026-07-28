@@ -8,7 +8,7 @@ import { DetalheDaPessoa } from "@/components/pessoas/detalhe-da-pessoa";
 import { Botao } from "@/components/ui/botao";
 import { exigirPerfil } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/servidor";
-import type { DetalhePessoa } from "@/lib/supabase/tipos";
+import type { DetalhePessoa, QuadroGerido } from "@/lib/supabase/tipos";
 
 export async function generateMetadata({
   params,
@@ -35,6 +35,19 @@ async function carregarDetalhe(id: string): Promise<DetalhePessoa | null> {
   return data;
 }
 
+/**
+ * Os quadros que quem está a ver pode dar a esta pessoa.
+ *
+ * Vem de `quadros_que_giro`, que aplica `pode_gerir_quadro`: um super_admin
+ * oferece todos, um gestor oferece os seus, e quem não gere nenhum não vê o
+ * formulário. Isto desenha o ecrã — quem recusa mesmo é `definir_membro_quadro`.
+ */
+async function carregarQuadrosGeridos(): Promise<QuadroGerido[]> {
+  const supabase = await criarClienteServidor();
+  const { data } = await supabase.rpc("quadros_que_giro");
+  return data ?? [];
+}
+
 export default async function PaginaPessoa({
   params,
 }: {
@@ -42,7 +55,10 @@ export default async function PaginaPessoa({
 }) {
   const { id } = await params;
   const perfil = await exigirPerfil();
-  const detalhe = await carregarDetalhe(id);
+  const [detalhe, quadrosGeridos] = await Promise.all([
+    carregarDetalhe(id),
+    carregarQuadrosGeridos(),
+  ]);
 
   if (!detalhe) notFound();
 
@@ -59,6 +75,7 @@ export default async function PaginaPessoa({
 
         <DetalheDaPessoa
           detalhe={detalhe}
+          quadrosGeridos={quadrosGeridos}
           euProprio={perfil}
           eSuperAdmin={perfil.papel_global === "super_admin"}
         />

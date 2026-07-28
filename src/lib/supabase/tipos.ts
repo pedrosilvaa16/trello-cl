@@ -430,6 +430,10 @@ export type Database = {
         Args: Record<string, never>;
         Returns: PessoaNaLista[];
       };
+      quadros_que_giro: {
+        Args: Record<string, never>;
+        Returns: QuadroGerido[];
+      };
       detalhe_pessoa: {
         Args: { p_alvo: string };
         Returns: DetalhePessoa;
@@ -445,6 +449,10 @@ export type Database = {
       definir_estado_conta: {
         Args: { p_alvo: string; p_ativo: boolean };
         Returns: Database["public"]["Tables"]["profiles"]["Row"];
+      };
+      preparar_eliminacao_conta: {
+        Args: { p_alvo: string };
+        Returns: ResumoEliminacao;
       };
       definir_membro_quadro: {
         Args: { p_quadro: string; p_utilizador: string; p_papel: PapelQuadro };
@@ -560,6 +568,27 @@ export type PessoaNaLista = {
   /** Quantos quadros e quantos cartões soltos (válidos) esta pessoa alcança. */
   quadros: number;
   cartoes: number;
+};
+
+/** O que a conta deixou atrás, contado antes de ela ser eliminada. */
+export type ResumoEliminacao = {
+  nome: string;
+  email: string | null;
+  /** Comentários e anexos que ficam, assinados com o nome em vez do perfil. */
+  comentarios: number;
+  anexos: number;
+  /** Acessos que desaparecem com a conta. */
+  quadros: number;
+  cartoes: number;
+};
+
+/**
+ * Um quadro que quem está a ver pode gerir — e portanto dar a outra pessoa,
+ * num convite ou no detalhe dela. Nunca inclui quadros arquivados.
+ */
+export type QuadroGerido = {
+  id: string;
+  nome: string;
 };
 
 export type QuadroDaPessoa = {

@@ -330,7 +330,34 @@ mantêm superfície opaca, e sobre a imagem há um véu cuja força segue o
 `brilho_fundo` — que é a classificação clara/escura que a própria Trello faz da
 imagem.
 
-### Convites
+### Convites e email
+
+Um convite é criado, enviado e gerido em `/pessoas/convites`. O envio é pelo
+[Resend](https://resend.com) — uma chamada HTTP em
+[`src/lib/email.ts`](src/lib/email.ts), sem dependência nova, e o email em si
+em [`email-convite.ts`](src/lib/email-convite.ts), escrito em HTML de tabela
+porque é o que os clientes de email sabem desenhar.
+
+Precisa de duas variáveis: `RESEND_API_KEY` e `EMAIL_REMETENTE`. O remetente
+tem de estar num domínio verificado em resend.com/domains. **Sem elas nada se
+parte**: o convite continua a ser criado e o painel avisa que falta a chave,
+para o link ser enviado à mão.
+
+Falhar a enviar nunca desfaz o convite. Um convite criado e não enviado
+resolve-se com o botão de reenviar; um convite que não chegou a existir porque
+o servidor de email estava em baixo seria uma chatice sem razão de ser.
+
+Reenviar um convite válido manda o mesmo link. Reenviar um que expirou dá-lhe
+um token novo e sete dias — e mata o antigo, que é o que se quer: um link que
+andou duas semanas em caixas de correio não deve voltar a funcionar por causa
+de um clique.
+
+**Quem vê que convites.** Um super_admin vê todos; toda a gente vê os que criou
+e os que tocam em quadros que gere. Antes da migração dos convites por email a
+política era `using (e_admin_algures())` — qualquer gestor via os convites de
+todos os clientes, emails incluídos.
+
+### Convites (o token)
 
 Um admin cria o convite, o sistema gera um token e a interface **mostra o link
 para copiar**. Não há servidor de email ligado, e dizer "enviado" sem ter

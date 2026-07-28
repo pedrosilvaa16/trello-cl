@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, UserPlus } from "lucide-react";
+import { CheckSquare, Copy, Square, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
@@ -14,9 +14,7 @@ import {
   NOMES_PAPEL,
   NOMES_PAPEL_GLOBAL,
 } from "@/lib/quadro/tipos";
-import type { PapelGlobal, PapelQuadro } from "@/lib/supabase/tipos";
-
-export type QuadroParaConvite = { id: string; nome: string };
+import type { PapelGlobal, PapelQuadro, QuadroGerido } from "@/lib/supabase/tipos";
 
 /**
  * Convite numa página só: email, papel global e a que quadros dá acesso.
@@ -33,7 +31,7 @@ export function ConvidarPessoa({
 }: {
   aberto: boolean;
   aoMudarAberto: (aberto: boolean) => void;
-  quadros: QuadroParaConvite[];
+  quadros: QuadroGerido[];
   podeEscolherPapelGlobal: boolean;
 }) {
   const router = useRouter();
@@ -43,11 +41,34 @@ export function ConvidarPessoa({
   const [ocupado, definirOcupado] = React.useState(false);
   const [ligacao, definirLigacao] = React.useState<string | null>(null);
 
+  const escolhidos = Object.keys(acessos).length;
+  const todosEscolhidos = quadros.length > 0 && escolhidos === quadros.length;
+
   function alternarQuadro(id: string) {
     definirAcessos((atuais) => {
       const seguintes = { ...atuais };
       if (id in seguintes) delete seguintes[id];
       else seguintes[id] = "editor";
+      return seguintes;
+    });
+  }
+
+  /**
+   * Todos ou nenhum.
+   *
+   * Quem entra para trabalhar em tudo — um gestor de conta, alguém que rende
+   * outra pessoa — entra em dez ou vinte quadros, e marcá-los um a um é onde
+   * se falha um sem dar por isso. Os papéis já escolhidos mantêm-se: só se
+   * acrescenta o que falta.
+   */
+  function alternarTodos() {
+    definirAcessos((atuais) => {
+      if (quadros.every((quadro) => quadro.id in atuais)) return {};
+
+      const seguintes = { ...atuais };
+      for (const quadro of quadros) {
+        if (!(quadro.id in seguintes)) seguintes[quadro.id] = "editor";
+      }
       return seguintes;
     });
   }
@@ -143,10 +164,41 @@ export function ConvidarPessoa({
             <legend className="mb-1 text-sm font-medium text-texto">
               A que quadros dá acesso
             </legend>
-            <p className="mb-2 text-xs text-texto-tenue">
-              Só aparecem os quadros que geres. Para dar acesso a um cartão
-              solto, convida primeiro e concede o cartão no detalhe da pessoa.
-            </p>
+
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <p className="text-xs text-texto-tenue">
+                Só aparecem os quadros que geres. Para dar acesso a um cartão
+                solto, convida primeiro e concede o cartão no detalhe da pessoa.
+              </p>
+
+              {quadros.length > 1 && (
+                <Botao
+                  type="button"
+                  variante="fantasma"
+                  tamanho="pequeno"
+                  className="shrink-0"
+                  onClick={alternarTodos}
+                >
+                  {todosEscolhidos ? (
+                    <>
+                      <Square /> Limpar seleção
+                    </>
+                  ) : (
+                    <>
+                      <CheckSquare /> Selecionar todos
+                    </>
+                  )}
+                </Botao>
+              )}
+            </div>
+
+            {escolhidos > 0 && (
+              <p className="mb-2 text-xs text-texto-suave" aria-live="polite">
+                {escolhidos === quadros.length
+                  ? `Entra em todos os quadros (${quadros.length}).`
+                  : `${escolhidos} de ${quadros.length} quadros escolhidos.`}
+              </p>
+            )}
 
             {quadros.length === 0 ? (
               <p className="rounded-md border border-dashed border-borda-forte px-3 py-4 text-center text-xs text-texto-tenue">

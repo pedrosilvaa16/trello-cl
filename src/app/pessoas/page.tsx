@@ -31,16 +31,13 @@ export default async function PaginaPessoas() {
     ? { data: [] as PessoaNaLista[] }
     : await supabase.rpc("listar_pessoas");
 
-  // Os quadros que quem está a ver pode oferecer num convite: só aqueles onde
-  // é gestor. Um admin não convida ninguém para quadros que não gere.
+  // Os quadros que quem está a ver pode oferecer num convite. A regra é
+  // `pode_gerir_quadro`, e quem a aplica é `quadros_que_giro` — repeti-la aqui
+  // com um join a `board_members` deixava de fora o super_admin, que gere todos
+  // os quadros sem ser membro de nenhum.
   const { data: quadros } = eExterno
     ? { data: [] }
-    : await supabase
-        .from("boards")
-        .select("id, nome, arquivado, board_members!inner(papel)")
-        .eq("board_members.papel", "gestor")
-        .eq("arquivado", false)
-        .order("nome");
+    : await supabase.rpc("quadros_que_giro");
 
   return (
     <>
@@ -62,7 +59,7 @@ export default async function PaginaPessoas() {
         ) : (
           <PainelPessoas
             pessoas={pessoas ?? []}
-            quadros={(quadros ?? []).map(({ id, nome }) => ({ id, nome }))}
+            quadros={quadros ?? []}
             euProprio={perfil}
           />
         )}

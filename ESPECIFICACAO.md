@@ -292,3 +292,13 @@ lista os cartões a que tem acesso agrupados por cliente, e de os poder abrir
 diretamente (`/cartao/[id]`). Sem isto, entra e não vê nada.
 
 Um cliente com um quadro só salta a lista e vai direto para lá.
+
+### Convites
+
+Criados, enviados e geridos em `/pessoas/convites`. O envio é pelo Resend, com
+`RESEND_API_KEY` e `EMAIL_REMETENTE` no ambiente; sem elas o convite continua a
+ser criado e o link é copiado à mão.
+
+Quem vê um convite: um `super_admin` vê todos, e toda a gente vê os que criou e
+os que dizem respeito a quadros que gere. Reenviar um convite válido manda o
+mesmo link; reenviar um expirado troca o token e dá-lhe sete dias novos.
