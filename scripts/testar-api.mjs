@@ -187,6 +187,7 @@ async function montarCenario() {
   const marta = await criarConta("marta", "admin", dominio);
   const rui = await criarConta("rui", "admin", dominio);
   const clienteA = await criarConta("cliente-a", "externo", dominio);
+  const clienteB = await criarConta("cliente-b", "externo", dominio);
   const nuno = await criarConta("nuno", "externo", dominio);
   const velho = await criarConta("velho", "externo", dominio);
 
@@ -203,6 +204,7 @@ async function montarCenario() {
   await admin.from("board_members").insert([
     { board_id: quadroA, user_id: clienteA.id, papel: "comentador" },
     { board_id: quadroA, user_id: velho.id, papel: "editor" },
+    { board_id: quadroB, user_id: clienteB.id, papel: "comentador" },
   ]);
 
   await admin.from("card_access").insert({
@@ -213,7 +215,7 @@ async function montarCenario() {
   });
 
   return {
-    sofia, marta, rui, clienteA, nuno, velho,
+    sofia, marta, rui, clienteA, clienteB, nuno, velho,
     quadroA, quadroB, cartaoX, cartaoY, cartaoZ, anexoA, anexoB,
   };
 }
@@ -462,7 +464,7 @@ async function correr() {
     verificar("o super_admin chega", r.estado === 200, `devolveu ${r.estado}`);
     verificar(
       "e vê as contas todas do cenário",
-      (r.corpo?.pessoas ?? []).filter((p) => p.email.startsWith(MARCA)).length === 6,
+      (r.corpo?.pessoas ?? []).filter((p) => p.email.startsWith(MARCA)).length === 7,
     );
   }
 
@@ -523,6 +525,164 @@ async function correr() {
       "nem se despromove",
       r2.estado === 400,
       `devolveu ${r2.estado}`,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  console.log("\n== Os ecrãs abrem, e cada um aterra onde deve ==");
+
+  /*
+    As rotas acima provam as permissões; isto prova que há produto por cima
+    delas. Um componente de servidor que rebente devolve 500 — e um modelo de
+    acesso impecável atrás de um ecrã partido não serve a ninguém.
+  */
+  const clienteB = await entrarComo(c.clienteB.email, PALAVRA_PASSE);
+
+  {
+    const r = await sofia.pedir("/pessoas");
+    const html = await r.resposta.text();
+    verificar("/pessoas abre para o super_admin", r.estado === 200, `devolveu ${r.estado}`);
+    verificar(
+      "e diz-lhe que vê todas as contas",
+      html.includes("todas as contas"),
+    );
+  }
+
+  {
+    const r = await sofia.pedir(`/pessoas/${c.nuno.id}`);
+    const html = await r.resposta.text();
+    verificar(
+      "o detalhe de uma pessoa abre",
+      r.estado === 200,
+      `devolveu ${r.estado}`,
+    );
+    verificar(
+      "e mostra o cartão que lhe foi concedido",
+      html.includes("Cartão X"),
+    );
+  }
+
+  {
+    const r = await nuno.pedir("/pessoas");
+    const html = await r.resposta.text();
+    verificar(
+      "um externo abre /pessoas e é mandado embora com uma explicação",
+      r.estado === 200 && html.includes("para quem gere pessoas"),
+      `devolveu ${r.estado}`,
+    );
+    verificar(
+      "e não vê o email de mais ninguém pelo caminho",
+      !html.includes(c.rui.email),
+    );
+  }
+
+  {
+    const r = await nuno.pedir("/os-meus-trabalhos");
+    const html = await r.resposta.text();
+    verificar(
+      "o freelancer abre Os meus trabalhos",
+      r.estado === 200,
+      `devolveu ${r.estado}`,
+    );
+    verificar("e lá está o cartão dele", html.includes("Cartão X"));
+    verificar(
+      "agrupado pelo nome do cliente",
+      html.includes(`${MARCA} Cliente A`),
+    );
+    verificar("sem o cartão do lado", !html.includes("Cartão Y"));
+  }
+
+  {
+    const bom = await nuno.pedir(`/cartao/${c.cartaoX}`);
+    verificar(
+      "abre o cartão que lhe deram, fora do quadro",
+      bom.estado === 200,
+      `devolveu ${bom.estado}`,
+    );
+
+    const mau = await nuno.pedir(`/cartao/${c.cartaoY}`);
+    verificar(
+      "e o do lado dá 404",
+      mau.estado === 404,
+      `devolveu ${mau.estado}`,
+    );
+  }
+
+  {
+    // Um cliente tem um quadro só: a lista de um elemento é um clique a mais.
+    const r = await clienteB.pedir("/");
+    const destino = r.resposta.headers.get("location") ?? "";
+    verificar(
+      "o cliente entra e vai direto ao quadro dele",
+      r.estado === 307 && destino.includes(`/quadro/${c.quadroB}`),
+      `devolveu ${r.estado} para ${destino || "(sem destino)"}`,
+    );
+  }
+
+  {
+    const r = await nuno.pedir("/");
+    const destino = r.resposta.headers.get("location") ?? "";
+    verificar(
+      "o freelancer entra e vai direto aos trabalhos dele",
+      r.estado === 307 && destino.includes("/os-meus-trabalhos"),
+      `devolveu ${r.estado} para ${destino || "(sem destino)"}`,
+    );
+  }
+
+  {
+    const r = await sofia.pedir("/");
+    verificar(
+      "e quem gere quadros continua a ver a lista",
+      r.estado === 200,
+      `devolveu ${r.estado}`,
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  console.log("\n== O quadro continua a ser um quadro ==");
+
+  /*
+    As políticas de `cards`, `comments` e `attachments` foram substituídas. É
+    aqui que se vê se alguém partiu o produto a caminho de o proteger: um
+    modelo de acesso perfeito num quadro que não abre não vale nada.
+  */
+  {
+    const r = await marta.pedir(`/quadro/${c.quadroA}`);
+    const html = await r.resposta.text();
+    verificar(
+      "a gestora abre o quadro dela",
+      r.estado === 200,
+      `devolveu ${r.estado}`,
+    );
+    verificar("com os dois cartões lá dentro", html.includes("Cartão X") && html.includes("Cartão Y"));
+  }
+
+  {
+    const r = await clienteA.pedir(`/quadro/${c.quadroA}`);
+    const html = await r.resposta.text();
+    verificar(
+      "o comentador abre o quadro do cliente dele",
+      r.estado === 200,
+      `devolveu ${r.estado}`,
+    );
+    verificar("e vê os cartões", html.includes("Cartão X"));
+  }
+
+  {
+    const r = await clienteA.pedir(`/quadro/${c.quadroB}`);
+    verificar(
+      "e o quadro do concorrente dá 404, não «sem permissão»",
+      r.estado === 404,
+      `devolveu ${r.estado}`,
+    );
+  }
+
+  {
+    const r = await sofia.pedir(`/quadro/${c.quadroB}`);
+    verificar(
+      "o super_admin abre um quadro de que não é membro",
+      r.estado === 200,
+      `devolveu ${r.estado}`,
     );
   }
 
