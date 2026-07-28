@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, LogOut, Users } from "lucide-react";
+import { Briefcase, LogOut, Mail, Users } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -18,11 +18,14 @@ import type { Perfil } from "@/lib/supabase/tipos";
 export function MenuUtilizador({
   perfil,
   gerePessoas = false,
+  podeConvidar = false,
   temTrabalhos = false,
 }: {
   perfil: Perfil;
   /** super_admin ou admin: mostra o painel de pessoas. */
   gerePessoas?: boolean;
+  /** Gere algum quadro: pode convidar, logo tem convites para ver. */
+  podeConvidar?: boolean;
   /** Tem cartões soltos, logo tem "Os meus trabalhos" para onde ir. */
   temTrabalhos?: boolean;
 }) {
@@ -60,7 +63,14 @@ export function MenuUtilizador({
             </Link>
           </ItemMenu>
         )}
-        {(gerePessoas || temTrabalhos) && <SeparadorMenu />}
+        {podeConvidar && (
+          <ItemMenu asChild>
+            <Link href="/pessoas/convites">
+              <Mail /> Convites
+            </Link>
+          </ItemMenu>
+        )}
+        {(gerePessoas || podeConvidar || temTrabalhos) && <SeparadorMenu />}
         <ItemMenu
           disabled={aSair}
           onSelect={() => {

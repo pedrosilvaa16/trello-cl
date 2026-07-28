@@ -29,7 +29,12 @@ export async function Cabecalho({
     da casa a resposta seria quase sempre não.
   */
   const supabase = await criarClienteServidor();
-  const { data: temTrabalhos } = await supabase.rpc("tenho_trabalhos_soltos");
+  const [{ data: temTrabalhos }, { data: podeConvidar }] = await Promise.all([
+    supabase.rpc("tenho_trabalhos_soltos"),
+    // Gerir um quadro chega para convidar — e quem convida precisa de ver os
+    // convites, mesmo sendo externo e não passando por /pessoas.
+    supabase.rpc("e_admin_algures"),
+  ]);
 
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-borda bg-superficie px-3 py-2 sm:px-4">
@@ -53,6 +58,7 @@ export async function Cabecalho({
         <MenuUtilizador
           perfil={perfil}
           gerePessoas={gerePessoas}
+          podeConvidar={podeConvidar ?? false}
           temTrabalhos={temTrabalhos ?? false}
         />
       </div>

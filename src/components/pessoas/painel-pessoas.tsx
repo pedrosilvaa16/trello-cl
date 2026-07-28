@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, UserPlus, Users } from "lucide-react";
+import { Mail, Search, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -71,9 +71,16 @@ export function PainelPessoas({
           </p>
         </div>
 
-        <Botao variante="principal" onClick={() => definirAConvidar(true)}>
-          <UserPlus /> Convidar pessoa
-        </Botao>
+        <div className="flex gap-2">
+          <Botao comoFilho variante="secundario">
+            <Link href="/pessoas/convites">
+              <Mail /> Convites
+            </Link>
+          </Botao>
+          <Botao variante="principal" onClick={() => definirAConvidar(true)}>
+            <UserPlus /> Convidar pessoa
+          </Botao>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">

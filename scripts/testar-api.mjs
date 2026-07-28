@@ -686,6 +686,109 @@ async function correr() {
     );
   }
 
+  // -------------------------------------------------------------------------
+  console.log("\n== Convites: quem vê e gere o quê ==");
+
+  /*
+    A política de leitura de `convites` era `using (e_admin_algures())` — todos
+    os gestores viam todos os convites da plataforma, e com eles o email de
+    quem foi convidado para o quadro de um concorrente. Isto é a prova de que
+    deixou de ser assim, pela rota que o painel usa.
+  */
+  let conviteDaMarta = null;
+
+  {
+    const r = await marta.pedir("/api/pessoas/convidar", {
+      method: "POST",
+      body: JSON.stringify({
+        email: `${MARCA}-convidada@exemplo.pt`,
+        papelGlobal: "externo",
+        acessos: [{ quadro: c.quadroA, papel: "comentador" }],
+      }),
+    });
+    verificar("a marta cria um convite", r.estado === 200, `devolveu ${r.estado}`);
+    verificar("e a resposta traz a ligação", typeof r.corpo?.ligacao === "string");
+    conviteDaMarta = r.corpo?.convite?.id ?? null;
+  }
+
+  {
+    const dela = await marta.pedir("/api/convites");
+    const ids = (dela.corpo?.convites ?? []).map((x) => x.id);
+    verificar("e vê-o na lista dela", ids.includes(conviteDaMarta));
+
+    const doRui = await entrarComo(c.rui.email, PALAVRA_PASSE);
+    const lista = await doRui.pedir("/api/convites");
+    const idsRui = (lista.corpo?.convites ?? []).map((x) => x.id);
+    const emailsRui = (lista.corpo?.convites ?? []).map((x) => x.email);
+    verificar(
+      "o rui NÃO vê o convite da marta",
+      !idsRui.includes(conviteDaMarta),
+      "viu-o",
+    );
+    verificar(
+      "nem o email de quem ela convidou",
+      !emailsRui.some((e) => e.includes("convidada")),
+    );
+
+    const revoga = await doRui.pedir(`/api/convites/${conviteDaMarta}`, {
+      method: "DELETE",
+    });
+    verificar(
+      "e não o consegue revogar pelo API",
+      revoga.estado === 403,
+      `devolveu ${revoga.estado}`,
+    );
+
+    const reenvia = await doRui.pedir(`/api/convites/${conviteDaMarta}/reenviar`, {
+      method: "POST",
+    });
+    verificar(
+      "nem reenviar",
+      reenvia.estado === 403,
+      `devolveu ${reenvia.estado}`,
+    );
+  }
+
+  {
+    const r = await sofia.pedir("/api/convites");
+    const ids = (r.corpo?.convites ?? []).map((x) => x.id);
+    verificar("o super_admin vê-o", ids.includes(conviteDaMarta));
+  }
+
+  {
+    const r = await nuno.pedir("/api/convites");
+    verificar(
+      "um externo sem quadros recebe uma lista vazia, e não um erro",
+      r.estado === 200 && (r.corpo?.convites ?? []).length === 0,
+      `devolveu ${r.estado} com ${(r.corpo?.convites ?? []).length}`,
+    );
+  }
+
+  {
+    const r = await marta.pedir("/pessoas/convites");
+    const html = await r.resposta.text();
+    verificar("o painel de convites abre", r.estado === 200, `devolveu ${r.estado}`);
+    verificar(
+      "com o convite lá dentro",
+      html.includes(`${MARCA}-convidada@exemplo.pt`),
+    );
+    verificar(
+      "e avisa que o envio de email não está configurado",
+      html.includes("RESEND_API_KEY"),
+    );
+  }
+
+  {
+    const r = await marta.pedir(`/api/convites/${conviteDaMarta}`, {
+      method: "DELETE",
+    });
+    verificar("quem o criou revoga-o", r.estado === 200, `devolveu ${r.estado}`);
+
+    const depois = await marta.pedir("/api/convites");
+    const ids = (depois.corpo?.convites ?? []).map((x) => x.id);
+    verificar("e ele desaparece da lista", !ids.includes(conviteDaMarta));
+  }
+
   return c;
 }
 

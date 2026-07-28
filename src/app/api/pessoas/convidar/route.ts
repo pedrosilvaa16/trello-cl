@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { exigirAdmin, gerarToken, responderErro } from "@/lib/acessos";
+import { enviarConvite, origemDe } from "@/lib/convites";
 import { criarClienteServidor } from "@/lib/supabase/servidor";
 
 const papelQuadro = z.enum(["gestor", "editor", "comentador", "leitor"]);
@@ -66,11 +67,17 @@ export async function POST(pedido: Request) {
     });
     if (error) throw error;
 
-    const origem = new URL(pedido.url).origin;
-    return Response.json({
-      convite: data,
-      ligacao: `${origem}/convite/${token}`,
-    });
+    const ligacao = `${origemDe(pedido)}/convite/${token}`;
+
+    /*
+      O convite já existe. Enviá-lo é o passo seguinte, e é o que pode falhar —
+      chave em falta, domínio por verificar, Resend em baixo. Nenhuma dessas
+      falhas deve desfazer o convite: a resposta traz sempre a ligação, e o
+      painel tem um botão para reenviar.
+    */
+    const envio = await enviarConvite({ convite: data, ligacao, supabase });
+
+    return Response.json({ convite: data, ligacao, envio });
   } catch (erro) {
     return responderErro(erro);
   }

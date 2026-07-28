@@ -260,6 +260,9 @@ export type Database = {
           token: string;
           expira_em: Timestamptz;
           usado_em: Timestamptz | null;
+          /** Quando o email saiu pela última vez. Nulo = nunca foi enviado. */
+          enviado_em: Timestamptz | null;
+          reenvios: number;
           criado_por: string | null;
           criado_em: Timestamptz;
         };
@@ -468,6 +471,26 @@ export type Database = {
         Args: { p_alvo: string };
         Returns: { quadros: number; cartoes: number };
       };
+      listar_convites: {
+        Args: Record<string, never>;
+        Returns: ConviteNaLista[];
+      };
+      renovar_convite: {
+        Args: { p_convite: string; p_token: string };
+        Returns: Database["public"]["Tables"]["convites"]["Row"];
+      };
+      marcar_convite_enviado: {
+        Args: { p_convite: string };
+        Returns: undefined;
+      };
+      revogar_convite: {
+        Args: { p_convite: string };
+        Returns: undefined;
+      };
+      pode_ver_convite: {
+        Args: { p_convite: string };
+        Returns: boolean;
+      };
       criar_convite: {
         Args: {
           p_email: string;
@@ -590,6 +613,32 @@ export type TrabalhoSolto = {
   board_id: string;
   quadro: string;
   lista: string;
+};
+
+/** O estado de um convite, calculado no servidor — "expirado" depende do relógio. */
+export type EstadoConvite = "pendente" | "por-enviar" | "expirado" | "usado";
+
+/** Uma linha do painel de convites. */
+export type ConviteNaLista = {
+  id: string;
+  email: string;
+  papel: PapelQuadro;
+  papel_global: PapelGlobal;
+  token: string;
+  estado: EstadoConvite;
+  expira_em: Timestamptz;
+  usado_em: Timestamptz | null;
+  enviado_em: Timestamptz | null;
+  reenvios: number;
+  criado_em: Timestamptz;
+  criado_por: string | null;
+  autor: string | null;
+  acessos: {
+    tipo: "quadro" | "cartao";
+    nome: string;
+    papel: PapelQuadro;
+    expira_em: Timestamptz | null;
+  }[];
 };
 
 /** Um acesso a conceder no resgate do convite: ou um quadro, ou um cartão. */
