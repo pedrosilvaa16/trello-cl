@@ -34,6 +34,7 @@ import type { PapelQuadro, Perfil } from "@/lib/supabase/tipos";
 import { cn } from "@/lib/utils";
 
 import { Anexos } from "./anexos";
+import { CapaCartao } from "./capa-cartao";
 import { Comentarios } from "./comentarios";
 import { Compositor } from "./compositor";
 import { AcessosCartao } from "./acessos-cartao";
@@ -380,6 +381,31 @@ export function DetalheCartao({
               </div>
             </Campo>
           </div>
+
+          {/*
+            A capa é do gestor do quadro, e não de quem edita o cartão — é
+            identidade visual, e a decisão está registada na migração
+            20260728180000. Quem não gere vê a imagem e não vê os botões.
+          */}
+          <CapaCartao
+            idCartao={cartao.id}
+            chave={cartao.imagem_destaque}
+            atualizadoEm={cartao.atualizado_em}
+            gerivel={papel === "gestor"}
+            aoMudar={(imagem_destaque) =>
+              despachar({
+                tipo: "cartao:alterar",
+                id: cartao.id,
+                campos: {
+                  imagem_destaque,
+                  // O servidor tocou no `atualizado_em`; acompanhar aqui é o
+                  // que faz o browser ir buscar a imagem nova em vez da cache.
+                  // O valor certo chega logo a seguir pelo Realtime.
+                  atualizado_em: new Date().toISOString(),
+                },
+              })
+            }
+          />
 
           {/* Descrição */}
           <section className="space-y-2">

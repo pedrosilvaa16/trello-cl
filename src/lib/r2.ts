@@ -137,6 +137,24 @@ export function chaveDoAnexo(
   return `boards/${idQuadro}/cards/${idCartao}/${idAnexo}-${nomeSeguro(nomeFicheiro)}`;
 }
 
+/**
+ * A chave da imagem de destaque de um cartão.
+ *
+ * Vive ao lado dos anexos do cartão, mas com prefixo próprio: assim a capa
+ * nunca é confundida com um anexo, e apagar um anexo nunca lhe toca. O `uuid`
+ * lá dentro é o que faz cada substituição escrever num objeto novo em vez de
+ * por cima do antigo — sem isso, o URL assinado que já está no browser de
+ * outra pessoa passava a servir a imagem nova a meio de uma sessão.
+ */
+export function chaveDaCapa(
+  idQuadro: string,
+  idCartao: string,
+  idImagem: string,
+  nomeFicheiro: string,
+) {
+  return `boards/${idQuadro}/cards/${idCartao}/capa/${idImagem}-${nomeSeguro(nomeFicheiro)}`;
+}
+
 /** Tira do nome o que não deve ir para uma chave de objeto. */
 export function nomeSeguro(nome: string) {
   return (

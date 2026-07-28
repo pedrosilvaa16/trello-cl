@@ -121,6 +121,65 @@ export async function moverCartao(
   return data as number;
 }
 
+/* ------------------------------------------------ imagem de destaque -- */
+
+/**
+ * Põe ou troca a imagem de destaque de um cartão.
+ *
+ * Três passos, como os anexos: pedir autorização, enviar direto para o R2,
+ * confirmar. O ficheiro nunca passa pelo servidor da aplicação.
+ *
+ * Ao contrário do resto deste ficheiro, isto não vai pelo cliente do browser
+ * ao Postgres — vai por rotas nossas, porque as credenciais do R2 vivem só no
+ * servidor e a chave do objeto não pode ser decidida aqui.
+ */
+export async function definirCapa(
+  idCartao: string,
+  imagem: { ficheiro: Blob; nomeFicheiro: string; tipoMime: string },
+): Promise<string> {
+  const autorizacao = await pedir(`/api/cartoes/${idCartao}/imagem`, {
+    method: "POST",
+    body: JSON.stringify({
+      nomeFicheiro: imagem.nomeFicheiro,
+      tamanho: imagem.ficheiro.size,
+      tipoMime: imagem.tipoMime,
+    }),
+  });
+
+  const envio = await fetch(autorizacao.url, {
+    method: "PUT",
+    body: imagem.ficheiro,
+    headers: { "Content-Type": imagem.tipoMime },
+  });
+  if (!envio.ok) {
+    throw new Error("O envio da imagem para o armazenamento falhou.");
+  }
+
+  await pedir(`/api/cartoes/${idCartao}/imagem`, {
+    method: "PUT",
+    body: JSON.stringify({ chave: autorizacao.chave }),
+  });
+
+  return autorizacao.chave as string;
+}
+
+export async function removerCapa(idCartao: string) {
+  await pedir(`/api/cartoes/${idCartao}/imagem`, { method: "DELETE" });
+}
+
+/** As rotas de gestão respondem sempre `{ erro }` com uma mensagem legível. */
+async function pedir(caminho: string, opcoes: RequestInit) {
+  const resposta = await fetch(caminho, {
+    headers: { "Content-Type": "application/json" },
+    ...opcoes,
+  });
+  const corpo = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) {
+    throw new Error(corpo.erro ?? "Não foi possível concluir a operação.");
+  }
+  return corpo;
+}
+
 /** Relê as posições de uma lista — usado depois de o servidor reequilibrar. */
 export async function relerPosicoes(idsListas: string[]) {
   const { data, error } = await bd()

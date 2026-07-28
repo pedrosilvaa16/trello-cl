@@ -1,69 +1,71 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
-import { useActionState } from "react";
-
-import { Botao } from "@/components/ui/botao";
-import { Campo, Grupo } from "@/components/ui/campo";
+import { AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { useActionState, useId } from "react";
 
 import { entrar } from "./acoes";
 import type { EstadoEntrada } from "./constantes";
 
+/*
+  Campos com sublinhado e CTA azul quadrado — os mesmos do formulário do site.
+  Não usa `ui/campo` nem `ui/botao` de propósito: esses trazem os cantos
+  arredondados e o verde da ferramenta, que é precisamente o que esta página não
+  deve mostrar a um cliente.
+*/
 export function FormularioEntrada({ destino }: { destino: string }) {
   const [estado, agir, pendente] = useActionState<EstadoEntrada, FormData>(
     entrar,
     {},
   );
 
+  const idEmail = useId();
+  const idPalavraPasse = useId();
+
   return (
-    <form action={agir} className="space-y-4" noValidate>
+    <form action={agir} noValidate>
       <input type="hidden" name="destino" value={destino} />
 
-      <Grupo rotulo="Email">
-        {(props) => (
-          <Campo
-            {...props}
-            name="email"
-            type="email"
-            autoComplete="username"
-            autoFocus
-            required
-            placeholder="nome@empresa.pt"
-          />
-        )}
-      </Grupo>
+      <div className="campo">
+        <label htmlFor={idEmail}>Email</label>
+        <input
+          id={idEmail}
+          name="email"
+          type="email"
+          autoComplete="username"
+          autoFocus
+          required
+          placeholder="nome@empresa.pt"
+        />
+      </div>
 
-      <Grupo rotulo="Palavra-passe">
-        {(props) => (
-          <Campo
-            {...props}
-            name="palavraPasse"
-            type="password"
-            autoComplete="current-password"
-            required
-          />
-        )}
-      </Grupo>
+      <div className="campo">
+        <label htmlFor={idPalavraPasse}>Palavra-passe</label>
+        <input
+          id={idPalavraPasse}
+          name="palavraPasse"
+          type="password"
+          autoComplete="current-password"
+          required
+        />
+      </div>
 
       {estado.erro && (
-        <p
-          role="alert"
-          className="flex items-start gap-2 rounded-md border border-[var(--cor-perigo)] bg-[var(--cor-perigo-tenue)] px-3 py-2 text-sm text-perigo"
-        >
-          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <p role="alert" className="erro">
+          <AlertCircle strokeWidth={1.5} aria-hidden />
           {estado.erro}
         </p>
       )}
 
-      <Botao
-        type="submit"
-        variante="principal"
-        tamanho="grande"
-        className="w-full"
-        ocupado={pendente}
-      >
-        Entrar
-      </Botao>
+      <button type="submit" className="cta" disabled={pendente} aria-busy={pendente || undefined}>
+        <span>{pendente ? "A entrar…" : "Entrar"}</span>
+        <span className="icone" aria-hidden>
+          {pendente ? (
+            <Loader2 strokeWidth={1.5} className="a-girar" />
+          ) : (
+            <ArrowRight strokeWidth={1.5} />
+          )}
+        </span>
+      </button>
     </form>
   );
 }

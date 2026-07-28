@@ -49,6 +49,28 @@ export function CartaoMini({
         cartao.concluido && "opacity-70",
       )}
     >
+      {/*
+        A capa vai acima de tudo e sangra até à borda do cartão, como na Trello.
+        `aria-hidden`: é identidade visual, não informação — quem usa leitor de
+        ecrã não ganha nada com "imagem" repetido trinta vezes na coluna.
+
+        O `?v=` é o instante da última alteração do cartão: troca a capa e o URL
+        muda com ela, sem o qual o browser continuava a servir a imagem antiga
+        da cache.
+      */}
+      {cartao.imagem_destaque && (
+        <div className="-mx-2 -mt-2 mb-2 overflow-hidden rounded-t-cartao bg-superficie-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/cartoes/${cartao.id}/imagem?v=${encodeURIComponent(cartao.atualizado_em)}`}
+            alt=""
+            aria-hidden
+            loading="lazy"
+            className="block h-28 w-full object-cover"
+          />
+        </div>
+      )}
+
       {doCartao.length > 0 && (
         <div className="mb-1.5 flex flex-wrap items-center gap-1">
           {doCartao.map((etiqueta) => (

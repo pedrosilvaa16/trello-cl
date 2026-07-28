@@ -19,6 +19,7 @@ function cartao(dados: Partial<CartaoCompleto> & { id: string }): CartaoCompleto
     data_limite: null,
     concluido: false,
     arquivado: false,
+    imagem_destaque: null,
     criado_por: null,
     criado_em: "2026-07-01T10:00:00.000Z",
     atualizado_em: "2026-07-01T10:00:00.000Z",

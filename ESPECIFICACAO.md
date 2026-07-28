@@ -236,6 +236,13 @@ trabalho.
   secção 3.4. O upload vai do browser direto para o Storage, protegido pelas
   políticas do bucket — passar 25 MB por uma função serverless esbarraria no
   limite de corpo do pedido da Vercel.
+- **Imagem de destaque do cartão** (`cards.imagem_destaque`). Segue a do quadro:
+  chave no R2, servida por URL assinado. É de **quem gere o quadro**, e não de
+  quem edita o cartão — é identidade visual, não conteúdo. Para isso ser
+  verdade e não só aparência, a coluna está fora do `GRANT` de UPDATE de
+  `cards` e só muda por `definir_imagem_cartao`; a política de UPDATE, sozinha,
+  deixaria qualquer editor lá escrever. Mesma técnica que
+  `profiles.papel_global` usa. A imagem é reduzida no browser antes de subir.
 
 ---
 

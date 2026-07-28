@@ -135,6 +135,8 @@ export type Database = {
           data_limite: Timestamptz | null;
           concluido: boolean;
           arquivado: boolean;
+          /** Chave no R2 da imagem de destaque. Nula quando o cartão não tem. */
+          imagem_destaque: string | null;
           criado_por: string | null;
           criado_em: Timestamptz;
           atualizado_em: Timestamptz;
@@ -150,6 +152,12 @@ export type Database = {
           arquivado?: boolean;
           criado_por?: string | null;
         };
+        /*
+          `imagem_destaque` não está aqui de propósito, e não é esquecimento: o
+          GRANT de coluna na base de dados recusa que ela seja escrita por um
+          UPDATE normal. Só `definir_imagem_cartao` lhe mexe. Pô-la aqui era
+          prometer uma escrita que o servidor não deixa acontecer.
+        */
         Update: {
           list_id?: string;
           titulo?: string;
@@ -453,6 +461,11 @@ export type Database = {
       preparar_eliminacao_conta: {
         Args: { p_alvo: string };
         Returns: ResumoEliminacao;
+      };
+      definir_imagem_cartao: {
+        Args: { p_cartao: string; p_chave?: string | null };
+        /** `anterior` é a chave que lá estava, para o R2 poder ser limpo. */
+        Returns: { anterior: string | null; chave: string | null };
       };
       definir_membro_quadro: {
         Args: { p_quadro: string; p_utilizador: string; p_papel: PapelQuadro };

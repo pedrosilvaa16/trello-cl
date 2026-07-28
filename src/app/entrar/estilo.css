@@ -1,0 +1,681 @@
+/*
+  Página de entrada — a única da aplicação vestida com a identidade do site da
+  Creative Line, e não com a paleta da ferramenta.
+
+  A razão: quem chega aqui é sobretudo cliente, e esta é a primeira coisa que vê.
+  Fio de 1px, cantos vivos, Graphik e o azul da casa — a mesma gramática do
+  cl-marcelo. Do lado de dentro, passada a autenticação, volta tudo ao
+  verde-pinho denso da ferramenta.
+
+  CSS à parte de propósito: estas regras não pertencem ao sistema de tokens da
+  aplicação e não devem escapar desta página.
+*/
+
+/* --- Graphik — fonte oficial da marca, self-hosted em /public/fonts --- */
+@font-face {
+  font-family: "Graphik";
+  src: url("/fonts/GraphikLight.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Graphik";
+  src: url("/fonts/GraphikRegular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Graphik";
+  src: url("/fonts/GraphikMedium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------------------------------------------------------------------------
+   Paleta da marca, local à página.
+
+   No escuro trocam-se apenas "tinta" e "papel": o círculo de inversão é sempre
+   tinta e a camada recortada é sempre papel, por isso o efeito inverte-se
+   sozinho sem uma linha de JavaScript a saber disso.
+--------------------------------------------------------------------------- */
+.entrada {
+  color-scheme: light;
+
+  --marca-tinta: #090d1a;
+  --marca-papel: #ffffff;
+  --marca-papel-2: #f4f7fd; /* papel com um sopro de azul — painel do formulário no telemóvel */
+  --marca-suave: #64748b; /* 4.7:1 sobre papel */
+  --marca-fio: #e0e3e8;
+
+  --marca-azul: #2563eb;
+  --marca-azul-forte: #1d4ed8;
+  --marca-azul-texto: #ffffff; /* 5.2:1 sobre o azul */
+
+  --marca-perigo: #b3261e;
+  --marca-perigo-fundo: #fdf2f1;
+
+  --marca-curva: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .entrada {
+    color-scheme: dark;
+
+    --marca-tinta: #f2f4f8;
+    --marca-papel: #090d1a;
+    --marca-papel-2: #111726;
+    --marca-suave: #98a3b8; /* 7.6:1 sobre papel */
+    --marca-fio: #232838;
+
+    --marca-azul: #5b8dfa; /* 6.1:1 sobre papel escuro */
+    --marca-azul-forte: #7ba5fc;
+    --marca-azul-texto: #0a0f1c;
+
+    --marca-perigo: #f2938c;
+    --marca-perigo-fundo: #2a1614;
+  }
+}
+
+.entrada {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  padding: max(1rem, 1.1vw); /* mesmo gutter do header do site */
+  background: var(--marca-papel);
+  color: var(--marca-tinta);
+  font-family: "Graphik", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* O foco é o da marca, não o verde da ferramenta. */
+.entrada :focus-visible {
+  outline: 2px solid var(--marca-azul);
+  outline-offset: 3px;
+  border-radius: 0;
+}
+
+/* --- Caixa: a moldura fina que o site usa em todo o lado --- */
+.entrada-caixa {
+  display: grid;
+  flex: 1;
+  width: 100%;
+  border: 1px solid var(--marca-fio);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/*
+  Empilhado, o formulário sobe para o segundo lugar: quem vem de telemóvel vem
+  para entrar, não para ler os três passos. Em duas colunas manda o
+  grid-template-areas e a ordem deixa de contar.
+*/
+.entrada-discurso {
+  order: 1;
+}
+.entrada-formulario {
+  order: 2;
+}
+.entrada-passos {
+  order: 3;
+}
+
+@media (min-width: 1024px) {
+  .entrada-caixa {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+      "discurso formulario"
+      "passos   formulario";
+  }
+}
+
+/* --- Painel do discurso --- */
+.entrada-discurso {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: min(3vw, 2.5rem);
+  padding: max(1.75rem, 3.5vw) max(1.5rem, 3.5vw);
+}
+
+@media (min-width: 1024px) {
+  .entrada-discurso {
+    grid-area: discurso;
+  }
+}
+
+/* --- Eyebrow: "// área de cliente" --- */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: max(0.75rem, 0.9vw);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  color: var(--marca-suave);
+}
+
+.eyebrow .acento {
+  font-family: var(--fonte-acento), "Graphik", sans-serif;
+  font-weight: 300;
+  color: var(--marca-azul);
+}
+
+/* ---------------------------------------------------------------------------
+   Zona de inversão — a assinatura do site.
+
+   Duas camadas com o mesmo conteúdo: a base em tinta e uma cópia em papel
+   recortada a um círculo que segue o rato. Onde o círculo passa, as letras
+   invertem; o azul mantém-se.
+--------------------------------------------------------------------------- */
+.zona-inversao {
+  position: relative;
+  --r: max(2.5rem, min(7vw, 11vh));
+  --cx: 40%;
+  --cy: 45%;
+}
+
+.zi-camada {
+  display: flex;
+  flex-direction: column;
+  gap: min(3vw, 2rem);
+}
+
+.zi-invertida {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  color: var(--marca-papel);
+  clip-path: circle(var(--r) at var(--cx) var(--cy));
+  will-change: clip-path;
+}
+
+.zi-invertida .titulo,
+.zi-invertida .subtitulo,
+.zi-invertida .eyebrow {
+  color: var(--marca-papel);
+}
+
+/* ...exceto o azul, que se mantém — é a marca, não é decoração. */
+.zi-invertida .azul,
+.zi-invertida .acento {
+  color: var(--marca-azul);
+}
+
+.zi-circulo {
+  position: absolute;
+  left: var(--cx);
+  top: var(--cy);
+  z-index: 1;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: var(--marca-tinta);
+  pointer-events: none;
+}
+
+/* --- Título --- */
+.titulo {
+  margin: 0;
+  max-width: 15ch;
+  font-weight: 400;
+  font-size: max(2rem, min(4.6vw, 8vh));
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  color: var(--marca-tinta);
+}
+
+.titulo .azul {
+  color: var(--marca-azul);
+}
+
+/*
+  Entrada escalonada: cada segmento desliza para o lugar. Só transform e
+  opacity — sem salto de layout. As duas camadas partilham as classes, por isso
+  animam em sincronia e o recorte do círculo nunca desalinha.
+*/
+.seg {
+  display: inline-block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .seg {
+    opacity: 0;
+    animation-name: seg-entra;
+    animation-timing-function: var(--marca-curva);
+    animation-fill-mode: both;
+  }
+  .seg-a {
+    --dx: -0.35rem;
+    animation-duration: 0.6s;
+    animation-delay: 0.05s;
+  }
+  .seg-b {
+    --dx: calc(-1 * clamp(0.8rem, 2.5vw, 2rem));
+    animation-duration: 1.1s;
+    animation-delay: 0.15s;
+  }
+  .seg-c {
+    --dx: clamp(0.8rem, 2.5vw, 2rem);
+    animation-duration: 0.85s;
+    animation-delay: 0.2s;
+  }
+  .seg-d {
+    --dx: clamp(1rem, 3vw, 2.5rem);
+    animation-duration: 1.35s;
+    animation-delay: 0.3s;
+  }
+}
+
+@keyframes seg-entra {
+  from {
+    opacity: 0;
+    transform: translateX(var(--dx));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.subtitulo {
+  margin: 0;
+  max-width: 44ch;
+  font-size: max(1rem, 1.15vw);
+  line-height: 1.55;
+  color: var(--marca-suave);
+}
+
+/* --- Os três passos --- */
+.entrada-passos {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--marca-fio);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 640px) {
+  .entrada-passos {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .entrada-passos {
+    grid-area: passos;
+  }
+}
+
+.passo {
+  padding: max(1.25rem, 1.8vw) max(1.5rem, 2vw);
+  border-top: 1px solid var(--marca-fio);
+}
+
+.passo:first-child {
+  border-top: 0;
+}
+
+@media (min-width: 640px) {
+  .passo {
+    border-top: 0;
+    border-left: 1px solid var(--marca-fio);
+  }
+  .passo:first-child {
+    border-left: 0;
+  }
+}
+
+.passo-numero {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  color: var(--marca-azul);
+}
+
+.passo-titulo {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--marca-tinta);
+}
+
+.passo-texto {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--marca-suave);
+}
+
+/* --- Painel do formulário --- */
+.entrada-formulario {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.75rem;
+  padding: max(1.75rem, 3vw) max(1.5rem, 2.5vw);
+  border-top: 1px solid var(--marca-fio);
+}
+
+@media (min-width: 1024px) {
+  .entrada-formulario {
+    grid-area: formulario;
+    align-items: center;
+    border-top: 0;
+    border-left: 1px solid var(--marca-fio);
+  }
+
+  /* A coluna é larga; o formulário não tem de ser. Um campo de 600 px para
+     escrever um email lê-se como um erro de alinhamento. */
+  .entrada-formulario > * {
+    width: 100%;
+    max-width: 26rem;
+  }
+}
+
+.entrada-formulario > form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* --- Campos com sublinhado, como no formulário do site --- */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--marca-fio);
+  transition: border-color 0.25s ease;
+}
+
+.campo:focus-within {
+  border-bottom-color: var(--marca-tinta);
+}
+
+.campo label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--marca-suave);
+}
+
+.campo input {
+  width: 100%;
+  min-width: 0;
+  /* Nunca abaixo de 16px: no iOS, um campo com letra mais pequena faz o Safari
+     dar zoom ao ganhar foco e a página salta. */
+  padding: 0.3rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--marca-tinta);
+  font-family: inherit;
+  font-size: max(1.05rem, 1.25vw);
+  line-height: 1.3;
+}
+
+.campo input::placeholder {
+  color: var(--marca-suave);
+}
+
+/* --- Erro --- */
+.erro {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--marca-perigo);
+  background: var(--marca-perigo-fundo);
+  color: var(--marca-perigo);
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.erro svg {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.1rem;
+}
+
+/* --- CTA: o botão azul quadrado do site --- */
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: max(0.9rem, 1vw) max(1rem, 1.1vw);
+  border: 1px solid transparent;
+  background: var(--marca-azul);
+  color: var(--marca-azul-texto);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.cta:hover:not(:disabled) {
+  background: var(--marca-azul-forte);
+}
+
+.cta:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.cta .icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.cta .icone svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.a-girar {
+  animation: girar 0.9s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Avisos e rodapé do painel --- */
+.nota {
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--marca-fio);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--marca-suave);
+}
+
+.aviso {
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--marca-fio);
+  border-left: 3px solid var(--marca-azul);
+}
+
+.aviso-titulo {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--marca-tinta);
+}
+
+.aviso-texto {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--marca-suave);
+}
+
+/* ---------------------------------------------------------------------------
+   Telemóvel e tablet — todas as regras num sítio só.
+
+   Quem chega aqui pelo telemóvel vem entrar. O objetivo é ter os dois campos e
+   o botão dentro do primeiro ecrã (~600 px úteis num telefone pequeno), sem a
+   marca desaparecer: logótipo e título encolhem, o subtítulo sai, os passos
+   ficam para depois da dobra.
+--------------------------------------------------------------------------- */
+@media (max-width: 1023px) {
+  .entrada {
+    padding: 0.75rem;
+  }
+
+  /*
+    Empilhado, a folga que sobra vai toda para o formulário — que a centra. Num
+    ecrã alto o bloco do email e da palavra-passe fica no meio, e não encostado
+    ao discurso com um vazio por baixo dos passos.
+  */
+  .entrada-caixa {
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .entrada-discurso {
+    gap: 1.1rem;
+    padding: 1.5rem 1.25rem 1.75rem;
+  }
+
+  /* O título é o que mais espaço come — encolhe primeiro. */
+  .titulo {
+    max-width: 18ch;
+    font-size: clamp(1.7rem, 8vw, 2.6rem);
+    letter-spacing: -0.03em;
+  }
+
+  .zi-camada {
+    gap: 1rem;
+  }
+
+  /* Círculo mais pequeno e assente sobre o título — no telemóvel é estático,
+     por isso a posição é escolhida à mão e não pelo rato. */
+  .zona-inversao {
+    --r: clamp(2.25rem, 12vw, 4.25rem);
+    --cx: 36%;
+    --cy: 62%;
+  }
+
+  /*
+    O subtítulo sai: repete o que os três passos já dizem em concreto, e são
+    quatro linhas entre o cliente e o campo do email.
+  */
+  .subtitulo {
+    display: none;
+  }
+
+  /*
+    O formulário em destaque: painel com papel ligeiramente tingido de azul,
+    para se ler como o bloco onde há alguma coisa a fazer. O cinza escurece
+    sobre esse fundo para o rótulo se manter acima de 4.5:1.
+  */
+  .entrada-formulario {
+    --marca-suave: #5b6a80;
+    gap: 1.25rem;
+    padding: 1.5rem 1.25rem 1.75rem;
+    background: var(--marca-papel-2);
+  }
+
+  .entrada-formulario > form {
+    gap: 1.25rem;
+  }
+
+  /* Alvo de toque folgado: o campo inteiro, e não só a linha do texto. */
+  .campo {
+    gap: 0.35rem;
+    padding-bottom: 0.85rem;
+  }
+
+  .campo input {
+    padding: 0.45rem 0;
+    font-size: 1.0625rem;
+  }
+
+  .cta {
+    padding: 1.05rem 1.1rem;
+  }
+
+  /* Passos compactos: número e título na mesma linha. */
+  .passo {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.75rem;
+    padding: 1.1rem 1.25rem;
+  }
+
+  .passo-numero {
+    grid-row: 1;
+    margin-bottom: 0;
+    line-height: 1.45;
+  }
+
+  .passo-titulo {
+    grid-row: 1;
+    font-size: 0.9375rem;
+  }
+
+  .passo-texto {
+    grid-column: 2;
+    margin-top: 0.15rem;
+  }
+
+  .nota {
+    padding-top: 0.9rem;
+  }
+}
+
+@media (max-width: 1023px) and (prefers-color-scheme: dark) {
+  .entrada-formulario {
+    --marca-suave: #98a3b8;
+  }
+}
+
+/*
+  Telefone pequeno (iPhone SE e afins): mais um aperto, para o botão não cair
+  abaixo da dobra.
+*/
+@media (max-width: 400px) {
+  .entrada {
+    padding: 0.5rem;
+  }
+
+  .entrada-discurso {
+    gap: 0.9rem;
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  .entrada-formulario {
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  .titulo {
+    font-size: clamp(1.55rem, 8.5vw, 2rem);
+  }
+
+  .passo {
+    padding: 0.9rem 1rem;
+  }
+}
