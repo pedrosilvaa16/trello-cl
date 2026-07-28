@@ -1,26 +1,352 @@
 @import "tailwindcss";
+/* Utilitários de entrada/saída (animate-in, fade-in-0...) usados pelos overlays. */
+@import "tw-animate-css";
+
+/*
+  Direção visual.
+
+  É uma ferramenta de trabalho, usada horas por dia: densidade, velocidade e
+  legibilidade acima de ornamento. A paleta é deliberadamente verde-pinho sobre
+  papel quente — nada do azul do Trello por reflexo.
+
+  Tudo o que é cor passa por estas variáveis. Mudar a identidade da empresa é
+  mexer aqui e em mais lado nenhum.
+*/
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  color-scheme: light;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Superfícies, do fundo para a frente */
+  --cor-fundo: #f7f6f3;
+  --cor-superficie: #ffffff;
+  --cor-superficie-2: #efede8;
+  --cor-superficie-3: #e5e2db;
+
+  --cor-borda: #e0ddd5;
+  --cor-borda-forte: #c8c4b9;
+
+  /* Texto — ambos acima de 4.5:1 sobre superfície */
+  --cor-texto: #1a1c1b;
+  --cor-texto-suave: #5b605c;
+  --cor-texto-tenue: #6f746f;
+
+  /* Verde-pinho: a cor da casa */
+  --cor-principal: #0f5f52;
+  --cor-principal-forte: #0a473e;
+  --cor-principal-texto: #ffffff;
+  --cor-principal-tenue: #e4efec;
+  --cor-principal-borda: #bcd8d1;
+
+  /* Estados */
+  --cor-perigo: #a32f2a;
+  --cor-perigo-tenue: #fbeceb;
+  --cor-aviso: #8a5a00;
+  --cor-aviso-tenue: #fbf1de;
+  --cor-sucesso: #1b6b3a;
+  --cor-sucesso-tenue: #e5f2ea;
+
+  --cor-foco: #0f5f52;
+
+  /* Curtas de propósito: animação lenta numa ferramenta usada o dia inteiro
+     transforma-se em irritação à terceira semana. */
+  --duracao-rapida: 120ms;
+  --duracao-arrasto: 170ms;
+  --curva: cubic-bezier(0.2, 0, 0.1, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: dark;
+
+    --cor-fundo: #131614;
+    --cor-superficie: #1b1f1d;
+    --cor-superficie-2: #232825;
+    --cor-superficie-3: #2c322e;
+
+    --cor-borda: #2f3632;
+    --cor-borda-forte: #454d48;
+
+    --cor-texto: #e9ebe9;
+    --cor-texto-suave: #a2a9a4;
+    --cor-texto-tenue: #8d938f;
+
+    --cor-principal: #3f9d88;
+    --cor-principal-forte: #58b6a0;
+    --cor-principal-texto: #06201b;
+    --cor-principal-tenue: #17322c;
+    --cor-principal-borda: #24544a;
+
+    --cor-perigo: #e8837c;
+    --cor-perigo-tenue: #32201f;
+    --cor-aviso: #d8a548;
+    --cor-aviso-tenue: #2e2617;
+    --cor-sucesso: #6bbd88;
+    --cor-sucesso-tenue: #1a2c21;
+
+    --cor-foco: #58b6a0;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@theme inline {
+  --color-fundo: var(--cor-fundo);
+  --color-superficie: var(--cor-superficie);
+  --color-superficie-2: var(--cor-superficie-2);
+  --color-superficie-3: var(--cor-superficie-3);
+  --color-borda: var(--cor-borda);
+  --color-borda-forte: var(--cor-borda-forte);
+  --color-texto: var(--cor-texto);
+  --color-texto-suave: var(--cor-texto-suave);
+  --color-texto-tenue: var(--cor-texto-tenue);
+  --color-principal: var(--cor-principal);
+  --color-principal-forte: var(--cor-principal-forte);
+  --color-principal-texto: var(--cor-principal-texto);
+  --color-principal-tenue: var(--cor-principal-tenue);
+  --color-principal-borda: var(--cor-principal-borda);
+  --color-perigo: var(--cor-perigo);
+  --color-perigo-tenue: var(--cor-perigo-tenue);
+  --color-aviso: var(--cor-aviso);
+  --color-aviso-tenue: var(--cor-aviso-tenue);
+  --color-sucesso: var(--cor-sucesso);
+  --color-sucesso-tenue: var(--cor-sucesso-tenue);
+
+  --font-sans: var(--fonte-interface), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--fonte-mono), ui-monospace, monospace;
+
+  --radius-cartao: 0.5rem;
+}
+
+/*
+  Cores das etiquetas.
+
+  Guardadas na base de dados pelo nome ('verde', 'azul'...) e não em hexadecimal:
+  assim a paleta pode mudar sem migração nenhuma. Todas escolhidas para dar pelo
+  menos 4.5:1 com o texto que levam por cima.
+*/
+:root {
+  --etiqueta-verde: #2f7a4e;
+  --etiqueta-amarelo: #866400;
+  --etiqueta-laranja: #a6551c;
+  --etiqueta-vermelho: #a63232;
+  --etiqueta-roxo: #6b4396;
+  --etiqueta-azul: #2b5ea7;
+  --etiqueta-rosa: #a33a71;
+  --etiqueta-cinza: #5a615d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --etiqueta-verde: #47a26c;
+    --etiqueta-amarelo: #b08a1e;
+    --etiqueta-laranja: #cc7639;
+    --etiqueta-vermelho: #cf5751;
+    --etiqueta-roxo: #9670c4;
+    --etiqueta-azul: #5288d6;
+    --etiqueta-rosa: #c9629b;
+    --etiqueta-cinza: #7d847f;
+  }
+}
+
+/* Cores de capa dos quadros. */
+:root {
+  --quadro-ardosia: #4a5a63;
+  --quadro-pinho: #0f5f52;
+  --quadro-ameixa: #6b4396;
+  --quadro-ocre: #8a6a1f;
+  --quadro-tijolo: #9c4230;
+  --quadro-oceano: #235e86;
+}
+
+@layer base {
+  * {
+    border-color: var(--cor-borda);
+  }
+
+  html {
+    height: 100%;
+  }
+
+  body {
+    min-height: 100%;
+    background-color: var(--cor-fundo);
+    color: var(--cor-texto);
+    font-family: var(--fonte-interface), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Números alinhados em coluna: contagens e datas não podem dançar. */
+  time,
+  [data-numerico] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Piso de qualidade: o foco de teclado é sempre visível, em todo o lado. */
+  :focus-visible {
+    outline: 2px solid var(--cor-foco);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  /* O rato não arrasta o foco atrás de si. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background-color: var(--cor-principal-tenue);
+    color: var(--cor-texto);
+  }
+}
+
+@layer components {
+  /* O quadro rola na horizontal; a barra tem de estar lá sem pesar. */
+  .barra-fina {
+    scrollbar-width: thin;
+    scrollbar-color: var(--cor-borda-forte) transparent;
+  }
+
+  .barra-fina::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+  }
+
+  .barra-fina::-webkit-scrollbar-thumb {
+    background-color: var(--cor-borda-forte);
+    border-radius: 6px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  .barra-fina::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /*
+    Markdown simples nas descrições dos cartões. Sem plugin de tipografia: são
+    seis regras, e assim herdam a paleta em vez de trazerem outra atrás.
+  */
+  .prosa {
+    font-size: 0.875rem;
+    line-height: 1.65;
+    color: var(--cor-texto);
+    overflow-wrap: anywhere;
+  }
+
+  .prosa > * + * {
+    margin-top: 0.65em;
+  }
+
+  .prosa h1,
+  .prosa h2,
+  .prosa h3 {
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 1.2em;
+  }
+
+  .prosa h1 {
+    font-size: 1.15em;
+  }
+  .prosa h2 {
+    font-size: 1.05em;
+  }
+  .prosa h3 {
+    font-size: 1em;
+  }
+
+  .prosa ul,
+  .prosa ol {
+    padding-left: 1.4em;
+  }
+
+  .prosa ul {
+    list-style: disc;
+  }
+  .prosa ol {
+    list-style: decimal;
+  }
+
+  .prosa li::marker {
+    color: var(--cor-texto-tenue);
+  }
+
+  .prosa a {
+    color: var(--cor-principal);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .prosa code {
+    font-family: var(--fonte-mono), ui-monospace, monospace;
+    font-size: 0.9em;
+    background-color: var(--cor-superficie-2);
+    border: 1px solid var(--cor-borda);
+    border-radius: 0.25rem;
+    padding: 0.05em 0.3em;
+  }
+
+  .prosa pre {
+    background-color: var(--cor-superficie-2);
+    border: 1px solid var(--cor-borda);
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    overflow-x: auto;
+  }
+
+  .prosa pre code {
+    background: none;
+    border: 0;
+    padding: 0;
+  }
+
+  .prosa blockquote {
+    border-left: 3px solid var(--cor-borda-forte);
+    padding-left: 0.75rem;
+    color: var(--cor-texto-suave);
+  }
+
+  .prosa hr {
+    border-top: 1px solid var(--cor-borda);
+  }
+
+  .prosa table {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+
+  .prosa th,
+  .prosa td {
+    border: 1px solid var(--cor-borda);
+    padding: 0.3em 0.6em;
+    text-align: left;
+  }
+
+  /* Salta para o conteúdo — o primeiro tab de cada página. */
+  .saltar-conteudo {
+    position: absolute;
+    left: 0.5rem;
+    top: 0.5rem;
+    z-index: 100;
+    transform: translateY(-150%);
+    transition: transform var(--duracao-rapida) var(--curva);
+  }
+
+  .saltar-conteudo:focus {
+    transform: translateY(0);
+  }
+}
+
+/*
+  Quem pede menos movimento recebe menos movimento — sem exceções e sem perder
+  funcionalidade nenhuma.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
