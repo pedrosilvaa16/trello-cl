@@ -6,7 +6,14 @@
  * do projeto real — e o resultado deve ser igual a isto.
  */
 
-export type PapelQuadro = "admin" | "editor" | "leitor";
+/**
+ * Eixo B — o que a pessoa pode fazer num quadro ou cartão concreto.
+ * A ordem é do mais forte para o mais fraco, como o enum na base de dados.
+ */
+export type PapelQuadro = "gestor" | "editor" | "comentador" | "leitor";
+
+/** Eixo A — o que a pessoa pode fazer no sistema, fora dos quadros. */
+export type PapelGlobal = "super_admin" | "admin" | "externo";
 
 type Timestamptz = string;
 
@@ -18,6 +25,10 @@ export type Database = {
           id: string;
           nome: string;
           avatar_url: string | null;
+          papel_global: PapelGlobal;
+          /** Falso = não entra e não conta como membro. Nunca se apaga a linha. */
+          ativo: boolean;
+          ultimo_acesso: Timestamptz | null;
           criado_em: Timestamptz;
         };
         Insert: {
@@ -26,6 +37,12 @@ export type Database = {
           avatar_url?: string | null;
           criado_em?: Timestamptz;
         };
+        /*
+          Só estas duas. `papel_global` e `ativo` mudam por
+          `definir_papel_global` e `definir_estado_conta`, e o GRANT de coluna
+          na base de dados recusa qualquer outro caminho — pôr aqui os campos
+          seria prometer uma escrita que o servidor não deixa acontecer.
+        */
         Update: {
           nome?: string;
           avatar_url?: string | null;
@@ -110,6 +127,8 @@ export type Database = {
         Row: {
           id: string;
           list_id: string;
+          /** Cópia de lists.board_id, mantida por trigger. É o que o RLS lê. */
+          board_id: string;
           titulo: string;
           descricao: string | null;
           posicao: number;
@@ -237,6 +256,7 @@ export type Database = {
           email: string;
           board_id: string | null;
           papel: PapelQuadro;
+          papel_global: PapelGlobal;
           token: string;
           expira_em: Timestamptz;
           usado_em: Timestamptz | null;
@@ -258,6 +278,53 @@ export type Database = {
       dominios_permitidos: {
         Row: { dominio: string; criado_em: Timestamptz };
         Insert: { dominio: string };
+        Update: never;
+        Relationships: [];
+      };
+      /*
+        Acesso a um cartão sem acesso ao quadro à volta — o caso do freelancer.
+        Vale enquanto `expira_em` for nulo ou estiver no futuro; passar a data
+        chega para o acesso deixar de funcionar, sem ninguém revogar nada.
+      */
+      card_access: {
+        Row: {
+          id: string;
+          card_id: string;
+          user_id: string;
+          papel: PapelQuadro;
+          concedido_por: string | null;
+          expira_em: Timestamptz | null;
+          criado_em: Timestamptz;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      /** Escrito só pelas funções de gestão. Do lado do cliente, só se lê. */
+      acessos_log: {
+        Row: {
+          id: number;
+          ator_id: string | null;
+          alvo_id: string | null;
+          accao: string;
+          detalhe: Record<string, unknown> | null;
+          criado_em: Timestamptz;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      convite_acessos: {
+        Row: {
+          id: string;
+          convite_id: string;
+          board_id: string | null;
+          card_id: string | null;
+          papel: PapelQuadro;
+          expira_em: Timestamptz | null;
+          criado_em: Timestamptz;
+        };
+        Insert: never;
         Update: never;
         Relationships: [];
       };
@@ -316,6 +383,100 @@ export type Database = {
         Args: { board_id: string };
         Returns: boolean;
       };
+      pode_gerir_quadro: {
+        Args: { board_id: string };
+        Returns: boolean;
+      };
+      pode_aceder_cartao: {
+        Args: { p_cartao: string };
+        Returns: boolean;
+      };
+      pode_editar_cartao: {
+        Args: { p_cartao: string };
+        Returns: boolean;
+      };
+      pode_comentar_cartao: {
+        Args: { p_cartao: string };
+        Returns: boolean;
+      };
+      papel_global_atual: {
+        Args: Record<string, never>;
+        Returns: PapelGlobal | null;
+      };
+      e_super_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      e_admin_algures: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      super_admins_activos: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      registar_acesso: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
+      tenho_trabalhos_soltos: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      listar_pessoas: {
+        Args: Record<string, never>;
+        Returns: PessoaNaLista[];
+      };
+      detalhe_pessoa: {
+        Args: { p_alvo: string };
+        Returns: DetalhePessoa;
+      };
+      os_meus_trabalhos: {
+        Args: Record<string, never>;
+        Returns: TrabalhoSolto[];
+      };
+      definir_papel_global: {
+        Args: { p_alvo: string; p_papel: PapelGlobal };
+        Returns: Database["public"]["Tables"]["profiles"]["Row"];
+      };
+      definir_estado_conta: {
+        Args: { p_alvo: string; p_ativo: boolean };
+        Returns: Database["public"]["Tables"]["profiles"]["Row"];
+      };
+      definir_membro_quadro: {
+        Args: { p_quadro: string; p_utilizador: string; p_papel: PapelQuadro };
+        Returns: Database["public"]["Tables"]["board_members"]["Row"];
+      };
+      remover_membro_quadro: {
+        Args: { p_quadro: string; p_utilizador: string };
+        Returns: undefined;
+      };
+      conceder_acesso_cartao: {
+        Args: {
+          p_cartao: string;
+          p_utilizador: string;
+          p_papel?: PapelQuadro;
+          p_expira_em?: Timestamptz | null;
+        };
+        Returns: Database["public"]["Tables"]["card_access"]["Row"];
+      };
+      revogar_acesso_cartao: {
+        Args: { p_cartao: string; p_utilizador: string };
+        Returns: undefined;
+      };
+      revogar_todos_os_acessos: {
+        Args: { p_alvo: string };
+        Returns: { quadros: number; cartoes: number };
+      };
+      criar_convite: {
+        Args: {
+          p_email: string;
+          p_token: string;
+          p_papel_global?: PapelGlobal;
+          p_acessos?: AcessoDoConvite[];
+        };
+        Returns: Database["public"]["Tables"]["convites"]["Row"];
+      };
       papel_no_quadro: {
         Args: { board_id: string };
         Returns: PapelQuadro | null;
@@ -328,6 +489,8 @@ export type Database = {
           board_id: string | null;
           nome_quadro: string | null;
           papel: PapelQuadro;
+          papel_global: PapelGlobal;
+          n_acessos: number;
           expira_em: Timestamptz;
           usado_em: Timestamptz | null;
           valido: boolean;
@@ -353,9 +516,88 @@ export type Database = {
     };
     Enums: {
       papel_quadro: PapelQuadro;
+      papel_global: PapelGlobal;
     };
     CompositeTypes: Record<never, never>;
   };
+};
+
+/* ------------------------------------------------ o que as funções devolvem */
+
+/** Uma linha do painel /pessoas. O email vem de auth.users, via SECURITY DEFINER. */
+export type PessoaNaLista = {
+  id: string;
+  nome: string;
+  email: string;
+  avatar_url: string | null;
+  papel_global: PapelGlobal;
+  ativo: boolean;
+  ultimo_acesso: Timestamptz | null;
+  criado_em: Timestamptz;
+  /** Quantos quadros e quantos cartões soltos (válidos) esta pessoa alcança. */
+  quadros: number;
+  cartoes: number;
+};
+
+export type QuadroDaPessoa = {
+  board_id: string;
+  nome: string;
+  papel: PapelQuadro;
+  arquivado: boolean;
+  desde: Timestamptz;
+  /** Se quem está a ver tem poder para mexer neste acesso. */
+  posso_gerir: boolean;
+};
+
+export type CartaoDaPessoa = {
+  card_id: string;
+  titulo: string;
+  board_id: string;
+  quadro: string;
+  papel: PapelQuadro;
+  expira_em: Timestamptz | null;
+  expirado: boolean;
+  concedido_em: Timestamptz;
+  concedido_por: string | null;
+  posso_gerir: boolean;
+};
+
+export type DetalhePessoa = {
+  pessoa: {
+    id: string;
+    nome: string;
+    email: string;
+    avatar_url: string | null;
+    papel_global: PapelGlobal;
+    ativo: boolean;
+    ultimo_acesso: Timestamptz | null;
+    criado_em: Timestamptz;
+  };
+  quadros: QuadroDaPessoa[];
+  cartoes: CartaoDaPessoa[];
+};
+
+/** Um cartão em "Os meus trabalhos", com o nome do cliente e não o quadro. */
+export type TrabalhoSolto = {
+  card_id: string;
+  titulo: string;
+  descricao: string | null;
+  data_limite: Timestamptz | null;
+  concluido: boolean;
+  arquivado: boolean;
+  papel: PapelQuadro;
+  expira_em: Timestamptz | null;
+  board_id: string;
+  quadro: string;
+  lista: string;
+};
+
+/** Um acesso a conceder no resgate do convite: ou um quadro, ou um cartão. */
+export type AcessoDoConvite = {
+  quadro?: string;
+  cartao?: string;
+  papel: PapelQuadro;
+  expira_em?: string | null;
 };
 
 /* Atalhos usados por toda a app. */
@@ -369,3 +611,5 @@ export type Etiqueta = Database["public"]["Tables"]["labels"]["Row"];
 export type Comentario = Database["public"]["Tables"]["comments"]["Row"];
 export type Anexo = Database["public"]["Tables"]["attachments"]["Row"];
 export type Convite = Database["public"]["Tables"]["convites"]["Row"];
+export type AcessoCartao = Database["public"]["Tables"]["card_access"]["Row"];
+export type RegistoAcesso = Database["public"]["Tables"]["acessos_log"]["Row"];

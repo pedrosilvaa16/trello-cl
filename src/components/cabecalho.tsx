@@ -15,15 +15,21 @@ export async function Cabecalho({
   children?: React.ReactNode;
 }) {
   /*
-    Uma contagem por render, mas sobre o índice board_members(user_id) — e é o
-    que evita mostrar a toda a gente um link que dá "isto é para admins".
+    O papel global vem no perfil que a página já carregou — antes era uma
+    contagem em board_members a cada render, e agora é uma coluna. Serve só
+    para não mostrar a toda a gente um link que dá "isto não é para ti"; quem
+    decide se a página abre é a própria página, no servidor.
+  */
+  const gerePessoas = perfil.papel_global !== "externo";
+
+  /*
+    Um freelancer não pode abrir o quadro onde está o cartão dele, por isso o
+    caminho para o trabalho tem de estar aqui em cima. Uma consulta ao índice
+    card_access(user_id, card_id), e só para quem não gere nada — para a equipa
+    da casa a resposta seria quase sempre não.
   */
   const supabase = await criarClienteServidor();
-  const { count } = await supabase
-    .from("board_members")
-    .select("board_id", { count: "exact", head: true })
-    .eq("user_id", perfil.id)
-    .eq("papel", "admin");
+  const { data: temTrabalhos } = await supabase.rpc("tenho_trabalhos_soltos");
 
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-borda bg-superficie px-3 py-2 sm:px-4">
@@ -35,16 +41,20 @@ export async function Cabecalho({
 
       <Link
         href="/"
-        className="rounded text-principal transition-opacity hover:opacity-80"
+        className="shrink-0 rounded transition-opacity hover:opacity-80"
         aria-label="Os meus quadros"
       >
-        <Marca />
+        <Marca className="h-4 sm:h-[18px]" />
       </Link>
 
       {children}
 
       <div className="ml-auto">
-        <MenuUtilizador perfil={perfil} eAdmin={(count ?? 0) > 0} />
+        <MenuUtilizador
+          perfil={perfil}
+          gerePessoas={gerePessoas}
+          temTrabalhos={temTrabalhos ?? false}
+        />
       </div>
     </header>
   );

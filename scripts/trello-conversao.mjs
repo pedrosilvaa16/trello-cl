@@ -68,7 +68,8 @@ export function corQuadro(idTrello) {
   return CORES_QUADRO[soma % CORES_QUADRO.length];
 }
 
-export const PAPEIS = { admin: "admin", normal: "editor", observer: "leitor" };
+// O papel de quadro da Trello para o daqui. `admin` lá é `gestor` cá.
+export const PAPEIS = { admin: "gestor", normal: "editor", observer: "leitor" };
 
 /**
  * As checklists entram na descrição como lista de tarefas markdown.

@@ -36,7 +36,7 @@ export default async function PaginaConvite({
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
-        <Marca className="mb-8 text-principal" />
+        <Marca className="mb-8 h-5" />
 
         {motivo ? (
           <>

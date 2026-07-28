@@ -12,6 +12,7 @@ import {
 function cartao(dados: Partial<CartaoCompleto> & { id: string }): CartaoCompleto {
   return {
     list_id: "lista-1",
+    board_id: "quadro-1",
     titulo: "Sem título",
     descricao: null,
     posicao: 1,

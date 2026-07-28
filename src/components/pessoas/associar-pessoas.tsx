@@ -17,11 +17,9 @@ type Pessoa = Database["public"]["Views"]["pessoas_trello_resumo"]["Row"];
 export function AssociarPessoas({
   pessoas: iniciais,
   perfis,
-  utilizador,
 }: {
   pessoas: Pessoa[];
   perfis: Pick<Perfil, "id" | "nome" | "avatar_url">[];
-  utilizador: Perfil;
 }) {
   const [pessoas, definirPessoas] = React.useState(iniciais);
 
@@ -53,7 +51,6 @@ export function AssociarPessoas({
                 key={pessoa.id_trello}
                 pessoa={pessoa}
                 perfis={perfis}
-                utilizador={utilizador}
                 aoMudar={substituir}
               />
             ))}
@@ -73,7 +70,6 @@ export function AssociarPessoas({
                 key={pessoa.id_trello}
                 pessoa={pessoa}
                 perfis={perfis}
-                utilizador={utilizador}
                 aoMudar={substituir}
               />
             ))}
@@ -87,12 +83,10 @@ export function AssociarPessoas({
 function LinhaPessoa({
   pessoa,
   perfis,
-  utilizador,
   aoMudar,
 }: {
   pessoa: Pessoa;
   perfis: Pick<Perfil, "id" | "nome" | "avatar_url">[];
-  utilizador: Perfil;
   aoMudar: (pessoa: Pessoa) => void;
 }) {
   const [email, definirEmail] = React.useState("");
@@ -169,7 +163,7 @@ function LinhaPessoa({
     if (!semConta) return;
     definirOcupado(true);
     try {
-      const { ligacao } = await mutar.criarConvite(semConta, null, "editor", utilizador.id);
+      const { ligacao } = await mutar.criarConvite(semConta, null, "editor");
       definirLigacaoConvite(ligacao);
       avisar.feito(
         "Convite criado.",

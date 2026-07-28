@@ -31,24 +31,33 @@ As migrações vivem em `supabase/migrations/` e são versionadas no Git.
 Todas as tabelas em `public`, todas com RLS ativa.
 
 ```
-profiles         id (= auth.users.id), nome, avatar_url, criado_em
+profiles         id (= auth.users.id), nome, avatar_url, criado_em,
+                 papel_global ('super_admin'|'admin'|'externo'),
+                 ativo, ultimo_acesso
 boards           id, nome, descricao, cor, arquivado, criado_por, criado_em
-board_members    board_id, user_id, papel ('admin'|'editor'|'leitor')
+board_members    board_id, user_id,
+                 papel ('gestor'|'editor'|'comentador'|'leitor')
 lists            id, board_id, nome, posicao (numeric), arquivada
-cards            id, list_id, titulo, descricao, posicao (numeric),
+cards            id, list_id, board_id, titulo, descricao, posicao (numeric),
                  data_limite (timestamptz), concluido, arquivado,
                  criado_por, criado_em, atualizado_em
+card_access      id, card_id, user_id, papel, concedido_por, expira_em, criado_em
+acessos_log      id, ator_id, alvo_id, accao, detalhe (jsonb), criado_em
 labels           id, board_id, nome, cor
 card_labels      card_id, label_id
 card_members     card_id, user_id
 comments         id, card_id, autor_id, corpo, criado_em, editado_em
 attachments      id, card_id, nome_ficheiro, caminho_storage, tamanho_bytes,
                  tipo_mime, carregado_por, criado_em
-convites         id, email, papel, token, expira_em, usado_em, criado_por
+convites         id, email, papel, papel_global, token, expira_em,
+                 usado_em, criado_por
+convite_acessos  id, convite_id, board_id, card_id, papel, expira_em
 ```
 
 Índices obrigatórios: `lists(board_id, posicao)`, `cards(list_id, posicao)`,
-`comments(card_id, criado_em)`, `board_members(user_id)`.
+`cards(board_id)`, `comments(card_id, criado_em)`,
+`board_members(user_id, board_id)`, `card_access(user_id, card_id)`,
+`profiles(papel_global) where ativo`.
 
 ---
 
@@ -85,10 +94,11 @@ a ferramenta e a internet aberta.
 A regra base: um utilizador só vê um quadro se existir uma linha em
 `board_members` que o ligue a esse quadro. Tudo o resto (listas, cartões,
 comentários, anexos) herda a permissão através do `board_id` do respetivo
-quadro.
+quadro. As duas exceções são o `super_admin`, que passa em tudo, e o
+`card_access`, que dá um cartão sem dar o quadro — ver secção 10.
 
-Escrita: `editor` e `admin` podem criar e alterar; `leitor` só lê. Apagar
-quadros e gerir membros é exclusivo de `admin`.
+Escrita: `editor` e `gestor` podem criar e alterar; `comentador` só comenta;
+`leitor` só lê. Apagar quadros e gerir membros é exclusivo de `gestor`.
 
 Escreve uma função `pode_aceder_quadro(board_id uuid)` em SQL e usa-a nas
 políticas em vez de repetir subconsultas.

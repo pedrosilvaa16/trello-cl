@@ -38,6 +38,34 @@ export async function proxy(pedido: NextRequest) {
   } = await supabase.auth.getUser();
 
   const caminho = pedido.nextUrl.pathname;
+
+  /*
+    Uma conta desativada não entra.
+
+    A base de dados já a deixou sem acesso a nada — todas as funções de
+    permissão começam por `conta_activa()` — e o Auth já a bloqueou. Isto é a
+    terceira barreira, e é a que evita o pior dos casos: um separador que ficou
+    aberto a navegar por ecrãs vazios sem explicação nenhuma.
+
+    Uma leitura por pedido, pela chave primária de `profiles`. Custa menos do
+    que qualquer coisa que a página a seguir vá fazer.
+  */
+  if (user) {
+    const { data: perfil } = await supabase
+      .from("profiles")
+      .select("ativo")
+      .eq("id", user.id)
+      .maybeSingle<{ ativo: boolean }>();
+
+    if (perfil && !perfil.ativo) {
+      await supabase.auth.signOut();
+      const destino = pedido.nextUrl.clone();
+      destino.pathname = "/entrar";
+      destino.search = "";
+      destino.searchParams.set("motivo", "desativada");
+      return NextResponse.redirect(destino);
+    }
+  }
   const rotaAberta = ROTAS_ABERTAS.some(
     (rota) => caminho === rota || caminho.startsWith(`${rota}/`),
   );

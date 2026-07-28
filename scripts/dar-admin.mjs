@@ -1,14 +1,20 @@
 /**
- * Dá a alguém o papel de admin em todos os quadros.
+ * Dá a alguém o papel de gestor em todos os quadros.
  *
- * O modelo de permissões é por quadro — não existe "super admin" global, e é
- * de propósito: quem entra num quadro tem de lá estar escrito. Isto é a forma
- * operacional de ter acesso a tudo, e tem de voltar a correr quando aparecerem
- * quadros novos.
+ * PROVAVELMENTE JÁ NÃO É ISTO QUE QUERES. Quando este script foi escrito não
+ * havia papel global nenhum, e "acesso a tudo" tinha de ser construído quadro
+ * a quadro — e voltar a correr sempre que aparecesse um quadro novo. Desde os
+ * níveis de acesso existe `super_admin`, que acede a todos os quadros sem
+ * precisar de convite e sem manutenção:
+ *
+ *   npm run papel-global -- pessoa@empresa.pt super_admin
+ *
+ * Isto continua a servir para o caso diferente de querer alguém escrito como
+ * gestor em cada quadro — por exemplo, para aparecer na lista de membros.
  *
  * Uso:
- *   npm run dar-admin -- cozinharte.pt@gmail.com
- *   npm run dar-admin -- cozinharte.pt@gmail.com --ver     (não altera nada)
+ *   npm run dar-admin -- pessoa@empresa.pt
+ *   npm run dar-admin -- pessoa@empresa.pt --ver     (não altera nada)
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -69,12 +75,12 @@ const { data: atuais } = await bd
   .eq("user_id", conta.id);
 
 const papelAtual = new Map((atuais ?? []).map((m) => [m.board_id, m.papel]));
-const emFalta = quadros.filter((q) => papelAtual.get(q.id) !== "admin");
+const emFalta = quadros.filter((q) => papelAtual.get(q.id) !== "gestor");
 
 console.log(`
 ${email}
   ${quadros.length} quadros no total
-  ${quadros.length - emFalta.length} onde já é admin
+  ${quadros.length - emFalta.length} onde já é gestor
   ${emFalta.length} por acrescentar
 `);
 
@@ -84,7 +90,7 @@ if (!emFalta.length) {
 }
 
 emFalta.forEach((q) =>
-  console.log(`  ${papelAtual.has(q.id) ? "sobe a admin" : "entra como admin"}  ${q.nome}`),
+  console.log(`  ${papelAtual.has(q.id) ? "sobe a gestor" : "entra como gestor"}  ${q.nome}`),
 );
 
 if (SO_VER) {
@@ -92,10 +98,10 @@ if (SO_VER) {
   process.exit(0);
 }
 
-// upsert e não insert: quem já lá está como editor sobe a admin em vez de
+// upsert e não insert: quem já lá está como editor sobe a gestor em vez de
 // rebentar contra a chave primária.
 const { error } = await bd.from("board_members").upsert(
-  emFalta.map((q) => ({ board_id: q.id, user_id: conta.id, papel: "admin" })),
+  emFalta.map((q) => ({ board_id: q.id, user_id: conta.id, papel: "gestor" })),
   { onConflict: "board_id,user_id" },
 );
 
@@ -104,8 +110,10 @@ if (error) {
   process.exit(1);
 }
 
-console.log(`\n✓ Admin em ${quadros.length} quadros.
+console.log(`\n✓ Gestor em ${quadros.length} quadros.
 
-  Volta a correr isto quando aparecerem quadros novos — o acesso é por quadro,
-  não há papel global que os apanhe sozinho.
+  Volta a correr isto quando aparecerem quadros novos — isto escreve linhas em
+  board_members, uma por quadro, e quadros novos nascem sem elas. Para acesso a
+  tudo sem manutenção, o caminho é outro:
+    npm run papel-global -- ${email} super_admin
 `);

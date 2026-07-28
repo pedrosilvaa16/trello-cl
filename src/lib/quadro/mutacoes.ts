@@ -3,7 +3,13 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 
 import { criarClienteNavegador } from "../supabase/navegador";
-import type { Database, Etiqueta, Lista, PapelQuadro } from "../supabase/tipos";
+import type {
+  Convite,
+  Database,
+  Etiqueta,
+  Lista,
+  PapelQuadro,
+} from "../supabase/tipos";
 import type {
   AnexoComAutor,
   CartaoCompleto,
@@ -212,40 +218,37 @@ export async function adicionarMembro(
 /**
  * Cria um convite de acesso à plataforma e devolve o link a enviar.
  *
- * O token é gerado aqui com `crypto.randomUUID()` — 122 bits de aleatoriedade
- * criptográfica por cada metade, o que chega e sobra para um segredo que vive
- * sete dias.
+ * Vai pela rota e não por um insert direto: o token tem de nascer no servidor,
+ * e as regras de quem pode convidar quem com que papel global vivem em
+ * `criar_convite`, em SQL. Dois caminhos para criar convites eram dois sítios
+ * onde essas regras podiam divergir.
+ *
+ * `idAutor` deixou de ser preciso — quem convida é quem tem a sessão, e é o
+ * servidor que o preenche.
  */
 export async function criarConvite(
   email: string,
   idQuadro: string | null,
   papel: PapelQuadro,
-  idAutor: string,
 ) {
-  const token = `${crypto.randomUUID()}${crypto.randomUUID()}`.replace(/-/g, "");
-
-  const { data, error } = await bd()
-    .from("convites")
-    .insert({
+  const resposta = await fetch("/api/pessoas/convidar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       email: email.trim().toLowerCase(),
-      board_id: idQuadro,
-      papel,
-      token,
-      criado_por: idAutor,
-    })
-    .select()
-    .single();
+      papelGlobal: "externo",
+      acessos: idQuadro ? [{ quadro: idQuadro, papel }] : [],
+    }),
+  });
 
-  if (error?.code === "23505") {
-    throw new Error(
-      "Já existe um convite por usar para este email. Revoga o antigo antes de criar outro.",
-    );
+  const corpo = await resposta.json().catch(() => ({}));
+  if (!resposta.ok) {
+    throw new Error(corpo.erro ?? "Não foi possível criar o convite.");
   }
-  rebentar(error, "criar o convite");
 
   return {
-    convite: data!,
-    ligacao: `${window.location.origin}/convite/${token}`,
+    convite: corpo.convite as Convite,
+    ligacao: corpo.ligacao as string,
   };
 }
 

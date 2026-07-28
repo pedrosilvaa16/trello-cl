@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Users } from "lucide-react";
+import { Briefcase, LogOut, Users } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 
@@ -17,10 +17,14 @@ import type { Perfil } from "@/lib/supabase/tipos";
 
 export function MenuUtilizador({
   perfil,
-  eAdmin = false,
+  gerePessoas = false,
+  temTrabalhos = false,
 }: {
   perfil: Perfil;
-  eAdmin?: boolean;
+  /** super_admin ou admin: mostra o painel de pessoas. */
+  gerePessoas?: boolean;
+  /** Tem cartões soltos, logo tem "Os meus trabalhos" para onde ir. */
+  temTrabalhos?: boolean;
 }) {
   const [aSair, definirASair] = React.useState(false);
 
@@ -42,16 +46,21 @@ export function MenuUtilizador({
           </p>
         </div>
         <SeparadorMenu />
-        {eAdmin && (
-          <>
-            <ItemMenu asChild>
-              <Link href="/pessoas">
-                <Users /> Pessoas da Trello
-              </Link>
-            </ItemMenu>
-            <SeparadorMenu />
-          </>
+        {temTrabalhos && (
+          <ItemMenu asChild>
+            <Link href="/os-meus-trabalhos">
+              <Briefcase /> Os meus trabalhos
+            </Link>
+          </ItemMenu>
         )}
+        {gerePessoas && (
+          <ItemMenu asChild>
+            <Link href="/pessoas">
+              <Users /> Pessoas
+            </Link>
+          </ItemMenu>
+        )}
+        {(gerePessoas || temTrabalhos) && <SeparadorMenu />}
         <ItemMenu
           disabled={aSair}
           onSelect={() => {

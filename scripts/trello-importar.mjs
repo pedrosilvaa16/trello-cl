@@ -293,7 +293,7 @@ for (const [n, dados] of quadros.entries()) {
   // Quem importa fica sempre admin: sem isto, um quadro cujos membros não
   // estejam mapeados ficaria sem ninguém que lhe pudesse tocar.
   const papelDe = new Map(associacoes.map((a) => [a.idMember, PAPEIS[a.memberType] ?? "editor"]));
-  const membrosQuadro = [{ board_id: q.id, user_id: admin, papel: "admin" }];
+  const membrosQuadro = [{ board_id: q.id, user_id: admin, papel: "gestor" }];
   for (const m of membros) {
     const p = pessoas.get(m.id);
     if (p?.perfil && p.perfil !== admin) {

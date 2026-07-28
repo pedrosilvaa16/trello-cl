@@ -5,6 +5,7 @@ import {
   ArchiveRestore,
   Calendar,
   Check,
+  KeyRound,
   Tag,
   Trash2,
   UserPlus,
@@ -28,13 +29,14 @@ import {
 import { estadoData, paraCampoLocal, deCampoLocal } from "@/lib/datas";
 import type { AccaoQuadro, EstadoQuadro } from "@/lib/quadro/estado";
 import * as mutar from "@/lib/quadro/mutacoes";
-import { podeEditar, type CartaoCompleto } from "@/lib/quadro/tipos";
+import { podeComentar, podeEditar, type CartaoCompleto } from "@/lib/quadro/tipos";
 import type { PapelQuadro, Perfil } from "@/lib/supabase/tipos";
 import { cn } from "@/lib/utils";
 
 import { Anexos } from "./anexos";
 import { Comentarios } from "./comentarios";
 import { Compositor } from "./compositor";
+import { AcessosCartao } from "./acessos-cartao";
 import { GestorEtiquetas, SeletorEtiquetas } from "./etiquetas";
 
 export function DetalheCartao({
@@ -53,9 +55,16 @@ export function DetalheCartao({
   aoFechar: () => void;
 }) {
   const editavel = podeEditar(papel);
+  /*
+    O comentador é o caso próprio do modelo: lê tudo, comenta, e não mexe em
+    mais nada. Sem esta distinção, um cliente abria o cartão dele e não tinha
+    onde responder — que é precisamente a única coisa que se lhe pede.
+  */
+  const comentavel = podeComentar(papel);
   const [aEditarTitulo, definirAEditarTitulo] = React.useState(false);
   const [aEditarDescricao, definirAEditarDescricao] = React.useState(false);
   const [gerirEtiquetas, definirGerirEtiquetas] = React.useState(false);
+  const [gerirAcessos, definirGerirAcessos] = React.useState(false);
   const confirmacao = useConfirmacao();
 
   const lista = estado.listas.find((l) => l.id === cartao.list_id);
@@ -424,7 +433,7 @@ export function DetalheCartao({
             key={cartao.id}
             idCartao={cartao.id}
             utilizador={utilizador}
-            editavel={editavel}
+            editavel={comentavel}
             aoMudarTotal={anotarComentarios}
           />
         </div>
@@ -443,6 +452,15 @@ export function DetalheCartao({
               {cartao.arquivado ? <ArchiveRestore /> : <Archive />}
               {cartao.arquivado ? "Repor no quadro" : "Arquivar cartão"}
             </Botao>
+            {papel === "gestor" && (
+              <Botao
+                variante="secundario"
+                tamanho="pequeno"
+                onClick={() => definirGerirAcessos(true)}
+              >
+                <KeyRound /> Dar acesso a este cartão
+              </Botao>
+            )}
             <Botao
               variante="fantasma"
               tamanho="pequeno"
@@ -471,6 +489,13 @@ export function DetalheCartao({
         idQuadro={estado.quadro.id}
         etiquetas={estado.etiquetas}
         despachar={despachar}
+      />
+
+      <AcessosCartao
+        aberto={gerirAcessos}
+        aoMudarAberto={definirGerirAcessos}
+        idCartao={cartao.id}
+        tituloCartao={cartao.titulo}
       />
     </Dialogo>
   );

@@ -1,49 +1,29 @@
+import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 
-/**
- * Marca da casa.
- *
- * Três colunas de alturas diferentes — um quadro visto de lado. Deliberadamente
- * sóbria: é uma ferramenta de trabalho, não uma campanha.
- */
-export function Marca({
-  className,
-  comNome = true,
-}: {
-  className?: string;
-  comNome?: boolean;
-}) {
+/*
+  O logótipo é um ficheiro em public/, não um SVG embutido: são ~16 kB de
+  curvas que o browser passa a servir de cache em vez de repetir no HTML de
+  todas as páginas. A cor vive lá dentro (preto no claro, --cor-texto no
+  escuro) — é a marca do cliente, não se pinta com as cores da interface.
+
+  O `next/image` desliga a otimização sozinho quando o src acaba em .svg, por
+  isso não é preciso mexer na configuração.
+*/
+const LARGURA_ORIGINAL = 360;
+const ALTURA_ORIGINAL = 44;
+
+/** Marca da casa. A altura vem do `className`; a largura acompanha. */
+export function Marca({ className }: { className?: string }) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <svg
-        viewBox="0 0 24 24"
-        className="size-5 shrink-0"
-        aria-hidden
-        fill="none"
-      >
-        <rect x="2" y="4" width="5.5" height="16" rx="1.5" fill="currentColor" />
-        <rect
-          x="9.25"
-          y="4"
-          width="5.5"
-          height="11"
-          rx="1.5"
-          fill="currentColor"
-          opacity="0.66"
-        />
-        <rect
-          x="16.5"
-          y="4"
-          width="5.5"
-          height="7"
-          rx="1.5"
-          fill="currentColor"
-          opacity="0.38"
-        />
-      </svg>
-      {comNome && (
-        <span className="text-[15px] font-semibold tracking-tight">Quadros</span>
-      )}
-    </span>
+    <Image
+      src="/marca-creative-line.svg"
+      alt="Creative Line."
+      width={LARGURA_ORIGINAL}
+      height={ALTURA_ORIGINAL}
+      priority
+      className={cn("h-[18px] w-auto", className)}
+    />
   );
 }

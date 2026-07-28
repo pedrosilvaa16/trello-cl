@@ -123,6 +123,11 @@ $$;
 
 delete from public.dominios_permitidos;
 
+-- Criar quadros passou a ser do eixo A (ver 20260728120000_niveis_de_acesso):
+-- um `externo` não tem poderes próprios. Estas quatro contas são a equipa da
+-- casa, e é como equipa da casa que os testes a seguir as usam.
+update public.profiles set papel_global = 'admin';
+
 -- ---------------------------------------------------------------------------
 -- Cada um no seu quadro
 -- ---------------------------------------------------------------------------
@@ -312,7 +317,7 @@ begin
     'e não gere membros',
     format(
       $sql$insert into public.board_members (board_id, user_id, papel)
-           values (%L, '44444444-4444-4444-8444-444444444444', 'admin')$sql$,
+           values (%L, '44444444-4444-4444-8444-444444444444', 'gestor')$sql$,
       current_setting('testes.quadro_ana')
     )
   );
@@ -349,7 +354,7 @@ begin
   perform testes.verificar(
     'e não promove ninguém a admin',
     testes.linhas_afetadas(format(
-      $sql$update public.board_members set papel = 'admin'
+      $sql$update public.board_members set papel = 'gestor'
            where board_id = %L and user_id = '33333333-3333-4333-8333-333333333333'$sql$,
       current_setting('testes.quadro_ana')
     )) = 0
@@ -635,7 +640,7 @@ begin
     )
   );
 
-  update public.board_members set papel = 'admin'
+  update public.board_members set papel = 'gestor'
   where board_id = current_setting('testes.quadro_ana')::uuid
     and user_id = '33333333-3333-4333-8333-333333333333';
 

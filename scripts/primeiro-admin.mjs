@@ -83,6 +83,31 @@ if (!resposta.ok) {
   );
 }
 
+/*
+  A primeira conta é o super_admin. Sem isto ficava em `externo`, que é o
+  default da coluna, e não conseguia criar um quadro nem convidar ninguém — a
+  plataforma nascia fechada e sem quem a abrisse.
+*/
+const idNovaConta = corpo.id ?? corpo.user?.id;
+let papelDefinido = false;
+
+if (idNovaConta) {
+  const promocao = await fetch(
+    `${url}/rest/v1/profiles?id=eq.${idNovaConta}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: chave,
+        Authorization: `Bearer ${chave}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ papel_global: "super_admin" }),
+    },
+  );
+  papelDefinido = promocao.ok;
+}
+
 console.log(`
 ✓ Conta criada.
 
@@ -94,8 +119,15 @@ ${
     ? ""
     : "\n  Guarda-a agora — não volta a ser mostrada.\n"
 }
-Passo seguinte: entra em /entrar, cria um quadro (ficas admin dele) e convida
-a equipa pelo botão de membros.
+  Papel global   ${papelDefinido ? "super_admin" : "POR DEFINIR"}
+${
+  papelDefinido
+    ? ""
+    : "\n  Não consegui promover a conta. Corre:\n" +
+      `    npm run papel-global -- ${email} super_admin\n`
+}
+Passo seguinte: entra em /entrar, cria um quadro (ficas gestor dele) e convida
+a equipa em /pessoas.
 `);
 
 function falhar(titulo, detalhe) {

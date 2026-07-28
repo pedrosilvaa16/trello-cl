@@ -79,12 +79,7 @@ export function GestorMembros({
       }
 
       // Sem conta: o caminho é um convite à plataforma.
-      const { convite, ligacao } = await mutar.criarConvite(
-        alvo,
-        idQuadro,
-        papel,
-        utilizador.id,
-      );
+      const { convite, ligacao } = await mutar.criarConvite(alvo, idQuadro, papel);
       definirPendentes((atuais) => [convite, ...atuais]);
       definirLigacaoNova(ligacao);
       definirEmail("");

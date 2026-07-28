@@ -4,6 +4,7 @@ import type {
   Comentario,
   Etiqueta,
   Lista,
+  PapelGlobal,
   PapelQuadro,
   Perfil,
   Quadro,
@@ -45,23 +46,48 @@ export type AnexoComAutor = Anexo & {
   autor: Pick<Perfil, "id" | "nome"> | null;
 };
 
-/** `leitor` só lê — é a única distinção que a interface precisa de fazer. */
+/*
+  Estas três respondem à mesma pergunta que as funções homónimas em SQL, e são
+  para desenhar a interface — nunca para decidir se uma escrita acontece. Quem
+  decide isso é o servidor: esconder um botão não é uma permissão.
+*/
+
+/** `gestor` e `editor` escrevem; `comentador` e `leitor` não. */
 export function podeEditar(papel: PapelQuadro) {
-  return papel === "admin" || papel === "editor";
+  return papel === "gestor" || papel === "editor";
 }
 
-export function eAdmin(papel: PapelQuadro) {
-  return papel === "admin";
+/** O comentador é o caso próprio: lê tudo e comenta, sem poder editar nada. */
+export function podeComentar(papel: PapelQuadro) {
+  return podeEditar(papel) || papel === "comentador";
+}
+
+export function eGestor(papel: PapelQuadro) {
+  return papel === "gestor";
 }
 
 export const NOMES_PAPEL: Record<PapelQuadro, string> = {
-  admin: "Admin",
+  gestor: "Gestor",
   editor: "Editor",
+  comentador: "Comentador",
   leitor: "Leitor",
 };
 
 export const DESCRICOES_PAPEL: Record<PapelQuadro, string> = {
-  admin: "Gere membros, arquiva e apaga o quadro.",
+  gestor: "Gere membros, arquiva e apaga o quadro.",
   editor: "Cria e altera listas, cartões e comentários.",
+  comentador: "Vê tudo e comenta. Não cria nem altera cartões.",
   leitor: "Vê tudo, não altera nada.",
+};
+
+export const NOMES_PAPEL_GLOBAL: Record<PapelGlobal, string> = {
+  super_admin: "Super admin",
+  admin: "Admin",
+  externo: "Externo",
+};
+
+export const DESCRICOES_PAPEL_GLOBAL: Record<PapelGlobal, string> = {
+  super_admin: "Gere pessoas e papéis. Acede a todos os quadros.",
+  admin: "Cria quadros e convida pessoas para os que gere.",
+  externo: "Só vê aquilo a que lhe deram acesso.",
 };

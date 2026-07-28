@@ -28,7 +28,7 @@ import { corQuadro } from "@/lib/cores";
 import type { AccaoQuadro, EstadoQuadro } from "@/lib/quadro/estado";
 import type { Filtros } from "@/lib/quadro/filtros";
 import * as mutar from "@/lib/quadro/mutacoes";
-import { eAdmin, podeEditar } from "@/lib/quadro/tipos";
+import { eGestor, podeEditar } from "@/lib/quadro/tipos";
 import type { PapelQuadro, Perfil } from "@/lib/supabase/tipos";
 
 import { Arquivo } from "./arquivo";
@@ -55,7 +55,7 @@ export function BarraQuadro({
 }) {
   const router = useRouter();
   const editavel = podeEditar(papel);
-  const admin = eAdmin(papel);
+  const gestor = eGestor(papel);
 
   const [aRenomear, definirARenomear] = React.useState(false);
   const [membrosAberto, definirMembrosAberto] = React.useState(false);
@@ -192,7 +192,7 @@ export function BarraQuadro({
               <ItemMenu onSelect={() => definirAjudaAberta(true)}>
                 <Keyboard /> Atalhos de teclado
               </ItemMenu>
-              {admin && (
+              {gestor && (
                 <>
                   <SeparadorMenu />
                   <ItemMenu onSelect={alternarArquivo}>
