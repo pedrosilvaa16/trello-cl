@@ -329,6 +329,37 @@ begin
       current_setting('testes.lista_b'), current_setting('testes.cartao_x')
     )
   );
+  -- Entregar trabalho é anexar um ficheiro. A política dos anexos é a do
+  -- cartão, e a rota de upload pergunta exatamente o mesmo — se perguntasse
+  -- pelo quadro, como perguntava antes, o freelancer não conseguia entregar.
+  perform testes.verificar(
+    'anexa um ficheiro ao cartão X',
+    testes.linhas_afetadas(format(
+      $sql$insert into public.attachments
+             (card_id, nome_ficheiro, caminho_storage, tamanho_bytes, tipo_mime, carregado_por)
+           values (%L, 'entrega.png', 'boards/x/cards/y/entrega.png', 500, 'image/png',
+                   'a0000000-0000-4000-8000-000000000006')$sql$,
+      current_setting('testes.cartao_x')
+    )) = 1
+  );
+  perform testes.deve_falhar(
+    'e não anexa nada ao cartão Y',
+    format(
+      $sql$insert into public.attachments
+             (card_id, nome_ficheiro, caminho_storage, tamanho_bytes, tipo_mime, carregado_por)
+           values (%L, 'intruso.png', 'boards/x/cards/z/intruso.png', 500, 'image/png',
+                   'a0000000-0000-4000-8000-000000000006')$sql$,
+      current_setting('testes.cartao_y')
+    )
+  );
+  perform testes.verificar(
+    'comenta no cartão X',
+    testes.linhas_afetadas(format(
+      $sql$insert into public.comments (card_id, autor_id, corpo)
+           values (%L, 'a0000000-0000-4000-8000-000000000006', 'Está feito.')$sql$,
+      current_setting('testes.cartao_x')
+    )) = 1
+  );
   perform testes.deve_falhar(
     'nem para a lista do lado, dentro do próprio quadro',
     format(

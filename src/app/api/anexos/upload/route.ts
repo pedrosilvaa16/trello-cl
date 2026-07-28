@@ -45,9 +45,13 @@ export async function POST(pedido: NextRequest) {
   const { cartao, nomeFicheiro, tipoMime } = validado.data;
 
   /*
-    A permissão de escrita é a do quadro do cartão. `pode_editar_quadro` é a
-    mesma função que as políticas de RLS usam — não há aqui uma segunda regra a
-    poder divergir da primeira.
+    A permissão é a do cartão, e não a do quadro: um freelancer com acesso a
+    este cartão tem de poder entregar o trabalho nele, sem ter o quadro à volta.
+
+    `pode_editar_cartao` é exatamente a função que a política de INSERT de
+    `attachments` usa. Se aqui se perguntasse outra coisa — como se perguntava
+    antes desta funcionalidade, pelo quadro — haveria duas regras a decidir o
+    mesmo, e a mais frouxa das duas seria a que realmente valia.
   */
   const { data: quadro } = await supabase.rpc("quadro_do_cartao", {
     cartao,
@@ -57,13 +61,13 @@ export async function POST(pedido: NextRequest) {
     return NextResponse.json({ erro: "Cartão não encontrado." }, { status: 404 });
   }
 
-  const { data: podeEditar } = await supabase.rpc("pode_editar_quadro", {
-    board_id: quadro,
+  const { data: podeEditar } = await supabase.rpc("pode_editar_cartao", {
+    p_cartao: cartao,
   });
 
   if (!podeEditar) {
     return NextResponse.json(
-      { erro: "Não tens permissão para anexar ficheiros neste quadro." },
+      { erro: "Não tens permissão para anexar ficheiros neste cartão." },
       { status: 403 },
     );
   }

@@ -83,10 +83,13 @@ npm run dev
 | `npm run trello:validar` | Ensaia a importação sem tocar na base de dados |
 | `npm run trello:importar` | Importa para a plataforma |
 | `npm run anexos:r2` | Traz da Trello todos os ficheiros para o R2 |
-| `npm run dar-admin` | Dá a alguém admin em todos os quadros |
+| `npm run papel-global` | Define o papel global de uma conta (`--listar` mostra todas) |
+| `npm run testar:api` | Testes de aceitação às rotas, com sessões reais |
+| `npm run dar-admin` | Escreve alguém como gestor em cada quadro (raramente é o que se quer — ver `papel-global`) |
 
-Depois de importar, **/pessoas** (no menu da conta, só para admins) liga cada
-pessoa da Trello a uma conta desta plataforma.
+**/pessoas** é o painel de gestão de acessos, para `super_admin` e `admin`.
+Depois de importar da Trello, **/pessoas/trello** liga cada pessoa da
+importação a uma conta desta plataforma.
 
 ### Testar a base de dados
 
@@ -97,7 +100,7 @@ testadas, e testa sempre com duas contas em quadros diferentes*. É o que
 Fases 1 e 2:
 
 - dois utilizadores não veem os quadros um do outro, nem com o id à frente;
-- um `leitor` lê e não escreve, um `editor` não apaga o quadro, só o `admin`
+- um `leitor` lê e não escreve, um `editor` não apaga o quadro, só o `gestor`
   gere membros;
 - comentários só são editados e apagados pelo próprio autor;
 - o bucket de anexos segue as permissões do quadro;
@@ -105,9 +108,26 @@ Fases 1 e 2:
 - **50 arrastos seguidos** e a ordem do servidor bate sempre certo com a do
   cliente, incluindo o reequilíbrio pelo meio.
 
+E os dez critérios de aceitação dos níveis de acesso
+([`05_niveis_de_acesso.sql`](supabase/tests/05_niveis_de_acesso.sql)), dos quais
+os dois primeiros são os que interessam: um cliente não lê nada do quadro de
+outro cliente, nem sequer o anexo, nem com o id à frente.
+
 Corre num cluster Postgres temporário com os arreios mínimos do Supabase
 (`supabase/tests/00_stub_supabase.sql`), por isso **não precisa de Docker**. Com
 Docker a correr, `supabase db reset` é o caminho mais fiel.
+
+### Testar as rotas
+
+`npm run bd:testar` cobre as políticas e as funções; `npm run testar:api` cobre
+o que fica por cima delas. É a única forma de fazer o teste 2 como está escrito
+— *não obtém URL assinado de um anexo do quadro B, mesmo chamando a rota
+diretamente com o id do anexo* — porque isso é um handler e não uma tabela.
+
+As contas fazem login a sério e o que vai em cada pedido é o cookie de sessão
+delas; a `service_role` só monta e desmonta o cenário. Precisa de um Supabase a
+sério (`supabase start`) e da aplicação a correr, e recusa-se a apontar para um
+projeto remoto sem `--mesmo-em-producao`.
 
 ---
 
@@ -214,17 +234,40 @@ devolvendo a posição final para o cliente se corrigir numa só resposta.
 
 ### Permissões
 
-Uma regra, um sítio: um utilizador vê um quadro se existir uma linha em
-`board_members` que o ligue a ele. Listas, cartões, etiquetas, comentários e
-anexos herdam daí, através das funções em
-[`20260727090100_funcoes_acesso.sql`](supabase/migrations/20260727090100_funcoes_acesso.sql).
+Dois eixos independentes, definidos em
+[`20260728120000_niveis_de_acesso.sql`](supabase/migrations/20260728120000_niveis_de_acesso.sql)
+e descritos por extenso na secção 10 da especificação.
 
-São `SECURITY DEFINER` por necessidade: uma política sobre `board_members` que
-consultasse `board_members` entraria em recursão infinita.
+**Eixo A, o papel global** (`profiles.papel_global`): `super_admin` gere pessoas
+e vê tudo; `admin` cria quadros e gere os seus; `externo` só vê o que lhe deram.
 
-A interface esconde o que um `leitor` não pode fazer, mas não é ela que decide —
-todas as escritas passam pelo cliente do browser, logo por RLS. Um quadro alheio
-não dá "sem permissão": desaparece.
+**Eixo B, o papel por recurso**: `gestor`, `editor`, `comentador`, `leitor` —
+num quadro (`board_members`) ou num cartão solto (`card_access`).
+
+"Cliente" e "freelancer" não são papéis, são combinações: um cliente é externo +
+comentador no quadro dele; um freelancer é externo + editor em cartões
+concretos, com data de fim opcional. Quem muda de função resolve-se com uma
+linha nova, e não com uma exceção no código.
+
+Uma regra, um sítio: as políticas chamam sempre `pode_aceder_*`,
+`pode_editar_*`, `pode_gerir_*`, e nunca repetem a lógica em subconsultas. São
+`SECURITY DEFINER` por necessidade — uma política sobre `board_members` que
+consultasse `board_members` entraria em recursão infinita — e todas acabam em
+`coalesce(..., false)`, porque em PL/pgSQL `if not <nulo>` não entra no ramo e
+uma guarda que se cala é uma guarda que não existe.
+
+A interface esconde o que um papel não pode fazer, mas não é ela que decide.
+As escritas do quadro passam pelo cliente do browser, logo por RLS; as de gestão
+passam por rotas que verificam a sessão no servidor e por funções SQL que voltam
+a verificar tudo. Um quadro alheio não dá "sem permissão": desaparece.
+
+**Utilizadores não se apagam** — desativa-se (`profiles.ativo`). Apagar quebraria
+a autoria dos comentários e o histórico dos cartões. Desativado não entra e
+deixa de contar como membro, mas o nome continua a aparecer no que escreveu. E a
+última conta `super_admin` ativa não pode ser desativada nem despromovida.
+
+Toda a alteração de acesso fica em `acessos_log`, onde ninguém escreve
+diretamente.
 
 ### Tempo real
 
@@ -306,14 +349,18 @@ parece válido.
 ## Onde está o quê
 
 ```
-supabase/migrations/   Esquema, RLS, posições, convites, storage, realtime
-supabase/tests/        Testes de RLS e de posições (SQL)
-src/app/               Rotas: entrar, convite, quadro, api/anexos
-src/components/ui/     Primitivas (botão, diálogo, menu, avatar…)
-src/components/quadro/ O quadro: colunas, cartões, detalhe, filtros, membros
-src/lib/quadro/        Estado, mutações, filtros, tempo real
-src/lib/posicoes.ts    Aritmética das posições fracionárias
-src/proxy.ts           Renovação de sessão e proteção de rotas
+supabase/migrations/    Esquema, RLS, posições, convites, storage, realtime,
+                        níveis de acesso
+supabase/reverter/      Reversões, fora do que o `db push` aplica
+supabase/tests/         Testes de RLS, posições e níveis de acesso (SQL)
+src/app/                Rotas: entrar, convite, quadro, cartão, pessoas, api
+src/components/ui/      Primitivas (botão, diálogo, menu, avatar…)
+src/components/quadro/  O quadro: colunas, cartões, detalhe, filtros, membros
+src/components/pessoas/ O painel de acessos e o cartão visto sem o quadro
+src/lib/acessos.ts      Autorização das rotas de gestão, no servidor
+src/lib/quadro/         Estado, mutações, filtros, tempo real
+src/lib/posicoes.ts     Aritmética das posições fracionárias
+src/proxy.ts            Renovação de sessão e proteção de rotas
 ```
 
 ---

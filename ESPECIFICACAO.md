@@ -236,3 +236,59 @@ trabalho.
   secção 3.4. O upload vai do browser direto para o Storage, protegido pelas
   políticas do bucket — passar 25 MB por uma função serverless esbarraria no
   limite de corpo do pedido da Vercel.
+
+---
+
+## 10. Níveis de acesso — dois eixos
+
+Acrescentado depois da Fase 5. O modelo de permissões passou a ter dois eixos
+independentes, e é isto que manda sobre a secção 3.3 onde as duas divergirem.
+
+**Eixo A — papel global** (`profiles.papel_global`). O que a pessoa pode fazer
+no sistema:
+
+| | |
+|---|---|
+| `super_admin` | Gere utilizadores e papéis globais. Acede a todos os quadros e cartões sem precisar de convite. Uma pessoa. |
+| `admin` | Gestoras de redes sociais. Criam quadros, gerem os quadros onde são gestoras, convidam pessoas para esses quadros. **Não** alteram papéis globais nem acedem a quadros alheios. |
+| `externo` | Todos os outros. Sem poderes próprios. Só vê aquilo a que lhe deram acesso explícito. |
+
+**Eixo B — papel por recurso** (`board_members.papel`, `card_access.papel`):
+`gestor`, `editor`, `comentador`, `leitor`.
+
+"Cliente" e "freelancer" **não são papéis**. São descrições de utilização:
+
+- cliente = `externo` + `comentador` no quadro dele
+- freelancer = `externo` + `editor` em cartões específicos
+
+É deliberado. Um cliente que passe a fazer trabalho pontual, ou um freelancer
+que se torne cliente, resolve-se com uma linha nova em vez de uma exceção no
+código.
+
+### O que isto obriga
+
+- **Um único sítio por regra.** As políticas usam sempre as funções
+  `pode_aceder_*` / `pode_editar_*` / `pode_gerir_*`. Duas cópias da mesma
+  regra a divergir são uma falha de segurança silenciosa.
+- **Nenhuma função de permissão devolve `null`.** Numa política, nulo é
+  recusa; em PL/pgSQL, `if not <nulo>` não entra no ramo e a guarda cala-se.
+  Todas acabam em `coalesce(..., false)`.
+- **`cards.board_id`.** Desnormalização mantida por trigger, para o RLS não ter
+  de subir a `lists` uma vez por linha.
+- **Utilizadores não se apagam.** Desativa-se (`profiles.ativo`). Apagar quebra
+  a autoria dos comentários e o histórico dos cartões.
+- **A última conta `super_admin` ativa** não pode ser desativada nem
+  despromovida.
+- **Toda a alteração de acesso escreve em `acessos_log`**, e ninguém escreve lá
+  diretamente.
+- **Esconder um botão não é uma permissão.** O papel global no cliente serve
+  para desenhar a interface; toda a ação é verificada no servidor.
+
+### Ecrãs que isto obriga a ter
+
+Um freelancer com cartões soltos não pode abrir o quadro — veria os cartões dos
+outros clientes. Precisa de **"Os meus trabalhos"** (`/os-meus-trabalhos`), que
+lista os cartões a que tem acesso agrupados por cliente, e de os poder abrir
+diretamente (`/cartao/[id]`). Sem isto, entra e não vê nada.
+
+Um cliente com um quadro só salta a lista e vai direto para lá.
