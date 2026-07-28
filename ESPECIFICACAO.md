@@ -275,8 +275,13 @@ código.
   Todas acabam em `coalesce(..., false)`.
 - **`cards.board_id`.** Desnormalização mantida por trigger, para o RLS não ter
   de subir a `lists` uma vez por linha.
-- **Utilizadores não se apagam.** Desativa-se (`profiles.ativo`). Apagar quebra
-  a autoria dos comentários e o histórico dos cartões.
+- **Utilizadores desativam-se, não se apagam.** Desativar (`profiles.ativo`) é
+  o caminho normal, e é o único que se desfaz. A exceção é a conta de teste ou
+  o convite enganado: aí, `preparar_eliminacao_conta` + a Admin API eliminam-na
+  de vez, e é exclusivo do `super_admin`. Antes de apagar, o nome de quem
+  escreveu passa para `comments.autor_externo` e
+  `attachments.carregado_por_externo` — as mesmas colunas que a importação da
+  Trello usa — para a autoria não se perder com o perfil.
 - **A última conta `super_admin` ativa** não pode ser desativada nem
   despromovida.
 - **Toda a alteração de acesso escreve em `acessos_log`**, e ninguém escreve lá
