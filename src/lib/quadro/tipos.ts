@@ -8,18 +8,33 @@ import type {
   PapelQuadro,
   Perfil,
   Quadro,
+  TipoLista,
 } from "@/lib/supabase/tipos";
 
 /**
  * Cartão com as ligações já resolvidas em arrays de ids e as contagens que o
  * cartão mostra de relance. Tudo isto vem na mesma consulta que os cartões.
  */
-export type CartaoCompleto = Cartao & {
+export type CartaoCompleto = Omit<
+  Cartao,
+  "referencia_porque" | "referencia_url"
+> & {
   etiquetas: string[];
   membros: string[];
   nComentarios: number;
   nAnexos: number;
+  /*
+    Opcionais porque só existem no payload de quem gere o quadro.
+    `carregarQuadro` corta-os para toda a gente — não é uma otimização, é a
+    regra do separador «Estratégia»: quem não gere não deve sequer saber que
+    ele existe, e um campo `referencia_porque` no cartão contava a história.
+  */
+  referencia_porque?: string | null;
+  referencia_url?: string | null;
 };
+
+/** Como `Lista`, mas com o `tipo` opcional — só vai a quem gere o quadro. */
+export type ListaNoQuadro = Omit<Lista, "tipo"> & { tipo?: TipoLista };
 
 export type MembroComPerfil = {
   user_id: string;
@@ -31,7 +46,7 @@ export type MembroComPerfil = {
 export type DadosQuadro = {
   /** `imagem` é o URL já assinado da imagem de destaque, válido uma hora. */
   quadro: Quadro & { imagem: string | null };
-  listas: Lista[];
+  listas: ListaNoQuadro[];
   cartoes: CartaoCompleto[];
   etiquetas: Etiqueta[];
   membros: MembroComPerfil[];

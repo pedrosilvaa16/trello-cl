@@ -139,15 +139,32 @@ export async function carregarQuadro(
 
   const [quadroComImagem] = await comImagens([quadro], "imagem_fundo");
 
+  /*
+    O SEPARADOR «ESTRATÉGIA» NÃO EXISTE PARA QUEM NÃO GERE O QUADRO.
+
+    Não é «existe e está desativado» — é não haver sinal nenhum dele. Um campo
+    `referencia_porque` num cartão, ou um `tipo` numa lista, contam a história
+    a quem abra as ferramentas do browser: há um sítio onde isto se preenche,
+    e eu não o vejo.
+
+    Cortar aqui, no servidor, é o que garante que estes campos nunca chegam ao
+    payload do React. As colunas continuam a ser lidas — são precisas para
+    montar o contexto de quem gere — mas o que sai para o cliente depende do
+    papel.
+  */
+  const gere = papel === "gestor";
+
   return {
     quadro: quadroComImagem,
-    listas: (listas ?? []).slice().sort(porPosicao),
+    listas: (listas ?? [])
+      .map(({ tipo, ...lista }) => (gere ? { ...lista, tipo } : lista))
+      .sort(porPosicao),
     // O cast é a fronteira: os tipos escritos à mão em supabase/tipos.ts não
     // declaram as relações, por isso o PostgREST não consegue inferir o que
     // sai de um select com recursos embutidos. `normalizarCartao` a seguir é
     // que garante a forma.
     cartoes: ((cartoes ?? []) as unknown as CartaoBruto[])
-      .map(normalizarCartao)
+      .map((bruto) => normalizarCartao(bruto, gere))
       .sort(porPosicao),
     etiquetas: etiquetas ?? [],
     membros: (membros ?? []) as unknown as MembroComPerfil[],
@@ -162,10 +179,22 @@ type CartaoBruto = Cartao & {
   attachments?: { count: number }[] | null;
 };
 
-function normalizarCartao(bruto: CartaoBruto): CartaoCompleto {
-  const { card_labels, card_members, comments, attachments, ...cartao } = bruto;
+function normalizarCartao(bruto: CartaoBruto, gere: boolean): CartaoCompleto {
+  const {
+    card_labels,
+    card_members,
+    comments,
+    attachments,
+    // Ficam de fora por omissão e só voltam a entrar para quem gere o quadro.
+    // Ver a nota em `carregarQuadro`.
+    referencia_porque,
+    referencia_url,
+    ...cartao
+  } = bruto;
+
   return {
     ...cartao,
+    ...(gere ? { referencia_porque, referencia_url } : {}),
     etiquetas: (card_labels ?? []).map((l) => l.label_id),
     membros: (card_members ?? []).map((m) => m.user_id),
     nComentarios: comments?.[0]?.count ?? 0,

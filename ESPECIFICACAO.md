@@ -416,3 +416,62 @@ no fornecedor. Acrescentar uma rede é um ficheiro em `src/lib/redes/`.
 é onde um cliente o vai abrir. Tudo empilha; nada rola na horizontal. O scroll
 horizontal das colunas do quadro é uma exceção justificada por ser um quadro, e
 não um padrão a repetir.
+
+---
+
+## 12. Separador «Estratégia» — o contexto que se cura
+
+Acrescentado depois da secção 11. É o terceiro separador de um quadro, ao lado
+de Conteúdos e Estatísticas, e **só existe para quem gere o quadro**.
+
+Nesta fase **não há modelo de linguagem nenhum ligado**: nenhuma chamada
+externa, nenhuma chave, nenhum SDK. O que se construiu foi o sítio onde o
+contexto de cada cliente vive — estratégia, voz da marca, o porquê de cada
+referência, o que funcionou e o que não funcionou — para se saber se isto se
+usa antes de se investir na parte cara.
+
+### Quem vê
+
+`pode_gerir_quadro`, e mais ninguém. Não é «vê e não pode editar»: um editor,
+um cliente ou um freelancer **não sabem que o separador existe**.
+
+- A aba não é construída no cabeçalho de quem não gere — não está desativada
+  nem escondida por CSS, não chega ao HTML.
+- As rotas respondem **404 e nunca 403**. Um 403 confirma que o recurso existe.
+- `carregarQuadro` corta `lists.tipo`, `cards.referencia_porque` e
+  `cards.referencia_url` do payload de quem não gere. Um campo destes num
+  cartão conta a história a quem abra as ferramentas do browser.
+- RLS em `board_contexto`, `aprendizagens` e `geracoes` com uma regra só, e ver
+  não é mais aberto do que escrever.
+
+### Decisões
+
+- **As listas são tipadas, não procuradas pelo nome.** `lists.tipo` é
+  `normal`, `referencias` ou `publicados`. Código que procurasse «Ideias e
+  Referências» partiria no primeiro quadro que lhe chamasse outra coisa — e
+  partiria em silêncio, devolvendo zero. A migração adivinhou uma vez pelo
+  nome; a partir daí corrige-se na interface, e listas novas nascem `normal`.
+
+- **A ordem dos blocos no prompt não é por conveniência de leitura.** Primeiro
+  os estáveis — estratégia, voz, publicados, referências, aprendizagens — e o
+  pedido no fim. É o que permitirá *prompt caching* quando o modelo entrar;
+  trocar de sítio deita fora essa poupança sem dar sinal nenhum.
+
+- **O gerador está atrás de uma interface, com duas implementações.** O
+  simulado devolve respostas fixas com 800–1500 ms de atraso artificial, e
+  grava em `geracoes` exatamente como o real gravará — com o retrato do
+  contexto e o respetivo hash. O atraso não é teatro: uma resposta instantânea
+  esconde os problemas que só aparecem quando ela demora.
+
+- **`geracoes.contexto_snapshot` guarda o que foi enviado**, e não uma
+  referência ao que existia. O contexto muda todos os dias, e uma resposta má
+  só se explica olhando para a entrada exata que a produziu.
+
+- **O painel «O que a AI vê» não está atrás de nenhum modo avançado.** Mostra o
+  resultado real de `montarContexto`, não uma aproximação. É o que permite a
+  quem gere olhar para a entrada quando uma sugestão for má, em vez de concluir
+  que a ferramenta não presta. Escondido, ninguém o abriria — e o valor todo
+  dele está em ser visto sem ser procurado.
+
+- **Nada do que a aba produz fica a viver na aba.** A aba é onde o contexto se
+  cura; o quadro é onde o trabalho acontece.

@@ -28,6 +28,17 @@ type Timestamptz = string;
 /** `faixa` = tira no topo; `completa` = capa no cartão todo, título por cima. */
 export type TamanhoCapa = "faixa" | "completa";
 
+/*
+  Separador «Estratégia» — o contexto de cada cliente.
+
+  As listas são tipadas em vez de procuradas pelo nome: «Ideias e Referências»
+  num quadro, «Inspiração» noutro, e código que procure pelo nome parte no
+  primeiro quadro diferente — em silêncio, devolvendo zero.
+*/
+export type TipoLista = "normal" | "referencias" | "publicados";
+
+export type TipoAprendizagem = "funcionou" | "nao_funcionou" | "nota";
+
 /** O estado completo da capa de um cartão. Uma cor ou um anexo, nunca os dois. */
 export type Capa = {
   capa_cor: CorEtiqueta | null;
@@ -142,6 +153,10 @@ export type Database = {
           nome: string;
           posicao: number;
           arquivada: boolean;
+          /* Para que serve a lista na montagem de contexto. Só chega ao
+             cliente de quem gere o quadro — ver `carregarQuadro`. Só muda por
+             `definir_tipo_lista`. */
+          tipo: TipoLista;
           criado_em: Timestamptz;
         };
         Insert: {
@@ -152,6 +167,8 @@ export type Database = {
           arquivada?: boolean;
           criado_em?: Timestamptz;
         };
+        /* `tipo` fora daqui de propósito: o GRANT de coluna recusa-o num
+           UPDATE normal, e só `definir_tipo_lista` lhe mexe. */
         Update: {
           nome?: string;
           posicao?: number;
@@ -177,6 +194,11 @@ export type Database = {
           capa_anexo_id: string | null;
           capa_tamanho: TamanhoCapa;
           capa_texto: "claro" | "escuro";
+          /* O porquê de uma referência. Só chega ao cliente de quem gere o
+             quadro — ver `carregarQuadro`. Só muda por
+             `definir_referencia_cartao`. */
+          referencia_porque: string | null;
+          referencia_url: string | null;
           criado_por: string | null;
           criado_em: Timestamptz;
           atualizado_em: Timestamptz;
@@ -563,6 +585,91 @@ export type Database = {
         };
         Relationships: [];
       };
+      /* ------------------------------------------- separador «Estratégia» */
+
+      /*
+        Todas estas têm RLS com uma regra só: `pode_gerir_quadro`. Ver não é
+        mais aberto do que escrever — a estratégia de um cliente não é para o
+        cliente ver, e um freelancer não tem nada que saber que ela existe.
+      */
+      board_contexto: {
+        Row: {
+          board_id: string;
+          estrategia: string | null;
+          voz_marca: string | null;
+          atualizado_por: string | null;
+          atualizado_em: Timestamptz;
+        };
+        /* Nasce e muda por `guardar_contexto_quadro`, que é quem carimba o
+           `atualizado_por` — sem isso gravava-se por cima do trabalho de outra
+           pessoa e ficava o nome dela no ecrã. */
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      aprendizagens: {
+        Row: {
+          id: string;
+          board_id: string;
+          texto: string;
+          tipo: TipoAprendizagem;
+          criado_por: string | null;
+          criado_em: Timestamptz;
+        };
+        Insert: {
+          id?: string;
+          board_id: string;
+          texto: string;
+          tipo: TipoAprendizagem;
+          criado_por: string;
+        };
+        Update: {
+          texto?: string;
+          tipo?: TipoAprendizagem;
+        };
+        Relationships: [];
+      };
+      /*
+        Preparada agora, usada quando o modelo entrar. O gerador simulado já
+        escreve aqui como o real escreverá, para a persistência estar testada
+        quando chegar a altura.
+      */
+      geracoes: {
+        Row: {
+          id: string;
+          board_id: string;
+          card_id: string | null;
+          tarefa: string;
+          contexto_snapshot: Record<string, unknown>;
+          contexto_hash: string;
+          pedido: string | null;
+          resposta: string | null;
+          modelo: string | null;
+          tokens_entrada: number | null;
+          tokens_saida: number | null;
+          avaliacao: number | null;
+          criado_por: string | null;
+          criado_em: Timestamptz;
+        };
+        Insert: {
+          id?: string;
+          board_id: string;
+          card_id?: string | null;
+          tarefa: string;
+          contexto_snapshot: Record<string, unknown>;
+          contexto_hash: string;
+          pedido?: string | null;
+          resposta?: string | null;
+          modelo?: string | null;
+          tokens_entrada?: number | null;
+          tokens_saida?: number | null;
+          criado_por: string;
+        };
+        Update: {
+          avaliacao?: number | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       /** Elenco da importação da Trello, com o que cada pessoa deixou atrás. */
@@ -686,6 +793,18 @@ export type Database = {
       preparar_eliminacao_conta: {
         Args: { p_alvo: string };
         Returns: ResumoEliminacao;
+      };
+      guardar_contexto_quadro: {
+        Args: { p_quadro: string; p_estrategia?: string | null; p_voz_marca?: string | null };
+        Returns: Database["public"]["Tables"]["board_contexto"]["Row"];
+      };
+      definir_tipo_lista: {
+        Args: { p_lista: string; p_tipo: TipoLista };
+        Returns: Database["public"]["Tables"]["lists"]["Row"];
+      };
+      definir_referencia_cartao: {
+        Args: { p_cartao: string; p_porque?: string | null; p_url?: string | null };
+        Returns: { referencia_porque: string | null; referencia_url: string | null };
       };
       definir_imagem_quadro: {
         Args: {

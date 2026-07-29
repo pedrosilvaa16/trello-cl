@@ -22,8 +22,12 @@ import {
 import { posicaoNoIndice, porPosicao } from "@/lib/posicoes";
 import type { AccaoQuadro } from "@/lib/quadro/estado";
 import * as mutar from "@/lib/quadro/mutacoes";
-import type { CartaoCompleto, MembroComPerfil } from "@/lib/quadro/tipos";
-import type { Etiqueta, Lista, Perfil } from "@/lib/supabase/tipos";
+import type {
+  CartaoCompleto,
+  ListaNoQuadro,
+  MembroComPerfil,
+} from "@/lib/quadro/tipos";
+import type { Etiqueta, Perfil } from "@/lib/supabase/tipos";
 import { cn } from "@/lib/utils";
 
 import { CartaoArrastavel } from "./cartao-mini";
@@ -40,7 +44,7 @@ export function Coluna({
   aoAbrirCartao,
   totalNaLista,
 }: {
-  lista: Lista;
+  lista: ListaNoQuadro;
   cartoes: CartaoCompleto[];
   etiquetas: Etiqueta[];
   membros: MembroComPerfil[];
@@ -300,7 +304,7 @@ export function NovaColuna({
   despachar,
 }: {
   idQuadro: string;
-  listas: Lista[];
+  listas: ListaNoQuadro[];
   despachar: React.Dispatch<AccaoQuadro>;
 }) {
   const [aberto, definirAberto] = React.useState(false);

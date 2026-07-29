@@ -38,7 +38,7 @@ export default async function LayoutQuadro({
     // baixo pelo componente do quadro.
     <div className="flex h-dvh flex-col overflow-hidden bg-transparent">
       <Cabecalho perfil={perfil}>
-        <SeparadoresQuadro idQuadro={id} />
+        <SeparadoresQuadro idQuadro={id} gere={dados.papel === "gestor"} />
       </Cabecalho>
       {children}
     </div>
