@@ -373,6 +373,103 @@ parece válido.
 
 ---
 
+## Ligar as redes sociais
+
+O separador **Estatísticas** de cada quadro mostra os resultados das redes do
+cliente. O que se segue é o que é preciso fazer uma vez, à mão, fora do código.
+
+### O que torna isto viável sem esperar meses
+
+A Meta dá dois níveis de acesso. O **avançado** deixa uma app ler dados de
+qualquer conta e exige App Review — semanas, às vezes meses. O **padrão** vem
+ligado de origem e chega para ler os ativos que estão nos portfólios de negócio
+a que a app pertence, quando quem autoriza tem lá um papel.
+
+É exatamente o caso desta agência: as Páginas dos clientes estão nos portfólios
+da Creative Line, com o Pedro como administrador. **Não há App Review nenhuma a
+esperar.**
+
+A fronteira a assumir: **um cliente cuja Página não esteja num portfólio da
+agência não tem estatísticas.** Não é uma falha da ligação, é o limite do acesso
+padrão. Esses quadros mostram o painel de demonstração, com a marca de exemplo.
+
+### 1. Criar a app da Meta
+
+1. Em [developers.facebook.com](https://developers.facebook.com/apps) → **Criar
+   app**. Tipo: **Empresa**. Associa-a ao portfólio de negócio da agência.
+2. Adiciona os produtos **Início de sessão do Facebook** e **Instagram**.
+3. Em *Início de sessão do Facebook → Definições*, no campo **URI de
+   redirecionamento OAuth válidos**, escreve exatamente:
+   ```
+   https://<o-teu-dominio>/api/redes/callback/meta
+   ```
+   Tem de ser byte a byte igual ao `APP_URL` do ambiente — a Meta recusa o que
+   não reconhecer, e o erro que dá não explica porquê.
+4. Em *Definições → Básico*, copia o **ID da app** e a **Chave secreta**.
+
+### 2. Confirmar as contas dos clientes
+
+Em [business.facebook.com](https://business.facebook.com), para cada cliente:
+
+- a **Página de Facebook** está no portfólio de negócio (própria ou partilhada);
+- a **conta de Instagram** é *Business* ou *Creator* e está ligada a essa Página;
+- a tua conta é **administradora** das duas.
+
+Sem a conta de Instagram ligada à Página, o Instagram desse cliente não aparece
+na lista — e o painel diz-te isso quando acontece, em vez de te deixar a olhar
+para um ecrã vazio.
+
+### 3. Variáveis de ambiente
+
+```bash
+APP_URL=https://<o-teu-dominio>
+META_APP_ID=<id da app>
+META_APP_SECRET=<chave secreta>
+
+# Cifra dos tokens. Trocar esta chave invalida todas as ligações.
+CHAVE_CIFRA_REDES=$(openssl rand -base64 32)
+
+# Segredo do cron diário.
+CRON_SECRET=$(openssl rand -hex 32)
+```
+
+O LinkedIn e o TikTok têm o fornecedor escrito e a interface pronta, e ficam à
+espera da aprovação de cada plataforma. Sem as credenciais no ambiente, os
+botões deles aparecem a cinzento e explicam porquê — não é preciso mexer no
+código no dia em que a aprovação chegar.
+
+### 4. Ligar, cliente a cliente
+
+No quadro de cada cliente, separador **Estatísticas** → **Ligar: Instagram**.
+Entras com o teu Facebook, escolhes o **portfólio de negócio** do cliente e
+depois a **conta** lá dentro. Os últimos 30 dias entram logo; a partir daí é o
+cron a tratar disso.
+
+Só quem gere o quadro vê estes botões, e o servidor volta a verificar a
+permissão em cada passo — esconder um botão não é uma permissão.
+
+### 5. O cron
+
+`vercel.json` agenda `/api/redes/sincronizar` para as 04:20 UTC. A Vercel
+preenche o `CRON_SECRET` sozinha se ele existir como variável do projeto.
+
+Isto **não é opcional**. A Meta só devolve cerca de 30 dias de histórico, e o
+que não for gravado nesse dia perde-se para sempre: um mês sem o cron correr é
+um mês que nenhum cliente volta a ver. Em troca, ao fim de um ano há histórico
+que o plano gratuito do Metricool não dá.
+
+### Quando alguma coisa falha
+
+| O que vês | O que é |
+|---|---|
+| «A ligação ao Instagram expirou» no topo do painel | O token caducou ou a autorização foi retirada. Volta a ligar a conta. |
+| A lista de contas vem vazia | A Página não está no portfólio escolhido, ou não tem Instagram associado. A mensagem diz qual dos dois. |
+| Bloco de demografia vazio | A Meta só a devolve acima de 100 seguidores. É um facto sobre a conta, não uma falha. |
+| Números parados há dias | Ver a tabela `sincronizacoes` (visível a quem gere o quadro) ou os registos do cron na Vercel. |
+
+
+---
+
 ## Onde está o quê
 
 ```
@@ -386,6 +483,9 @@ src/components/quadro/  O quadro: colunas, cartões, detalhe, filtros, membros
 src/components/pessoas/ O painel de acessos e o cartão visto sem o quadro
 src/lib/acessos.ts      Autorização das rotas de gestão, no servidor
 src/lib/quadro/         Estado, mutações, filtros, tempo real
+src/lib/redes/          Fornecedores das redes, cifra dos tokens, sincronização
+src/lib/estatisticas/   Agregação das métricas, dados de demonstração
+src/components/estatisticas/  O painel e os gráficos (SVG próprio, sem biblioteca)
 src/lib/posicoes.ts     Aritmética das posições fracionárias
 src/proxy.ts            Renovação de sessão e proteção de rotas
 ```

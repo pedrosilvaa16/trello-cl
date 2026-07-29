@@ -96,8 +96,14 @@ export async function proxy(pedido: NextRequest) {
 /**
  * O registo é fechado: só o ecrã de entrada e o resgate de convites vivem fora
  * da sessão. Tudo o resto é redirecionado para /entrar antes de renderizar.
+ *
+ * A exceção é o cron das estatísticas. Não há sessão nenhuma por trás de um
+ * cron, e sem isto a Vercel apanhava um redirect para /entrar em vez da rota —
+ * a sincronização nunca corria e ninguém dava por isso até o painel de um
+ * cliente estar um mês parado. Quem a autentica é o `CRON_SECRET`, verificado
+ * dentro da própria rota.
  */
-const ROTAS_ABERTAS = ["/entrar", "/convite"];
+const ROTAS_ABERTAS = ["/entrar", "/convite", "/api/redes/sincronizar"];
 
 export const config = {
   matcher: [

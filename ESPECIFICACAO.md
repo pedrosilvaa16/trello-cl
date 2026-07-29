@@ -321,3 +321,98 @@ ser criado e o link é copiado à mão.
 Quem vê um convite: um `super_admin` vê todos, e toda a gente vê os que criou e
 os que dizem respeito a quadros que gere. Reenviar um convite válido manda o
 mesmo link; reenviar um expirado troca o token e dá-lhe sete dias novos.
+
+---
+
+## 11. Estatísticas de redes sociais — dois separadores por quadro
+
+Acrescentado depois da secção 10. **Isto revoga a exclusão de "integrações
+externas" da secção 5**, e só para este caso: as estatísticas das redes do
+cliente. Tudo o resto dessa lista continua fora de âmbito.
+
+A razão é de produto, não técnica. Cada quadro é um cliente, e até aqui o
+quadro só mostrava o que está *planeado*. Faltava o outro lado — o que esse
+plano deu. É o separador que transforma a ferramenta interna num painel que se
+mostra ao cliente.
+
+### Os dois separadores
+
+Dentro de `/quadro/[id]` passam a existir duas secções:
+
+| | |
+|---|---|
+| **Conteúdos** (`/quadro/[id]`) | O quadro como sempre foi: listas, cartões, arrasto. |
+| **Estatísticas** (`/quadro/[id]/estatisticas`) | Painel de resultados das redes sociais do cliente. |
+
+O `layout.tsx` do quadro é dono do cabeçalho e dos separadores; cada página
+traz só o seu conteúdo.
+
+### Quem vê e quem liga
+
+Os dois eixos da secção 10 aplicam-se sem exceção nova:
+
+- **Ver estatísticas** = `pode_aceder_quadro`. Um `leitor` e um `comentador`
+  veem o painel inteiro — é para isso que ele existe.
+- **Ligar e desligar contas** = `pode_gerir_quadro`. Só quem gere o quadro
+  autoriza uma rede social. Um cliente vê os números e nunca vê o botão.
+
+### Decisões
+
+- **O token é do quadro, não da agência.** Cada `ligacoes_redes` tem
+  `board_id not null`. O cliente autoriza a conta dele para o quadro dele, e
+  desligar um quadro não mexe em mais nenhum. Um token único do Business
+  Manager a servir todos os quadros pouparia autorizações e trocaria uma
+  política RLS de uma linha por uma tabela de associação — não compensa.
+
+- **Os segredos não vivem no mesmo sítio que os dados.** `ligacoes_segredos` é
+  uma tabela à parte, com RLS ativa e **política nenhuma**: nem o dono do
+  quadro a lê. Os tokens entram cifrados com AES-256-GCM a partir da aplicação
+  (`CHAVE_CIFRA_REDES`), portanto a base de dados guarda-os sem os saber ler.
+  É deliberadamente mais apertado do que `convites.token`, que está em claro —
+  um token de convite vive sete dias e dá acesso a este produto; um token da
+  Meta vive sessenta dias e dá acesso à conta do cliente.
+
+- **A base de dados é a fonte de verdade, não a API.** A Meta só devolve cerca
+  de trinta dias de histórico. Um cron diário grava um retrato em
+  `metricas_redes`, e o painel lê sempre de lá. A consequência a assumir: o
+  histórico começa no dia em que a conta é ligada, e um mês sem sincronizar é
+  um mês perdido para sempre. Em troca, ao fim de um ano há histórico que o
+  plano gratuito do Metricool não dá.
+
+- **Ninguém escreve métricas a partir do browser.** `metricas_redes`,
+  `demografia_redes`, `publicacoes_redes` e `sincronizacoes` têm `insert`,
+  `update` e `delete` revogados de `authenticated`. Só o sincronizador escreve,
+  com a `service_role`. Mesmo tratamento de `acessos_log`.
+
+- **Uma ligação expirada diz que expirou.** Os tokens da Meta duram sessenta
+  dias. `ligacoes_redes.estado` e um aviso visível no topo do painel valem mais
+  do que qualquer outra coisa aqui: um painel de cliente a mostrar números
+  velhos em silêncio é o pior modo de falha possível.
+
+- **Gráficos escritos de raiz**, em SVG, sobre os tokens de `globals.css`.
+  Nenhuma biblioteca de gráficos entra no projeto: traria meio megabyte, um
+  sistema de temas paralelo ao nosso e props em inglês no meio de código todo
+  em português.
+
+- **Faseamento.** Instagram e Facebook primeiro, por partilharem a mesma app
+  Meta e valerem quase todo o resultado. LinkedIn e TikTok têm o fornecedor
+  escrito e a interface pronta, e ficam à espera da aprovação respetiva — a
+  `ligacoes_redes.rede` já as aceita.
+
+### Vocabulário de métricas
+
+Cada rede fala a sua língua; a base de dados fala uma só. Os fornecedores
+traduzem para este vocabulário e o painel nunca sabe de que rede veio o número:
+`seguidores`, `a_seguir`, `publicacoes`, `alcance`, `visualizacoes`,
+`interacoes`, `gostos`, `comentarios`, `partilhas`, `guardados`,
+`visitas_perfil`, `cliques_site`.
+
+Acrescentar uma métrica é acrescentar uma linha ao vocabulário e o mapeamento
+no fornecedor. Acrescentar uma rede é um ficheiro em `src/lib/redes/`.
+
+### Mobile-first, e desta vez a sério
+
+É o primeiro ecrã do projeto desenhado para o telemóvel antes do computador —
+é onde um cliente o vai abrir. Tudo empilha; nada rola na horizontal. O scroll
+horizontal das colunas do quadro é uma exceção justificada por ser um quadro, e
+não um padrão a repetir.

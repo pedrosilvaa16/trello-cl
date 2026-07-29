@@ -146,6 +146,49 @@
   }
 }
 
+/*
+  Cores dos gráficos.
+
+  NÃO são as cores das etiquetas, e a diferença não é estética. As da etiqueta
+  foram escolhidas para dar 4.5:1 com o texto que levam por cima; estas são
+  para distinguir séries lado a lado, que é outro problema. A paleta das
+  etiquetas, medida com um validador de daltonismo, dá 3.6 de separação entre o
+  cinza e o rosa em deuteranopia — indistinguíveis num gráfico.
+
+  Este par foi escolhido a medir, não a olho, e passa as seis verificações nos
+  dois temas: banda de luminosidade, croma mínimo, separação em protanopia,
+  deuteranopia e tritanopia (ΔE ≥ 8 em todos os pares, não só nos vizinhos),
+  distinção em visão normal (ΔE ≥ 15) e contraste ≥ 3:1 com a superfície.
+
+  Duas cores chegam porque quase tudo aqui é série única — a magnitude fala
+  pelo tamanho da barra e a identidade pelo rótulo ao lado. A segunda cor só
+  entra onde há mesmo duas categorias a comparar.
+
+  `--grafico-neutro` é para o "não declarado" do género. Cinzento de propósito:
+  é a ausência de resposta, e não uma terceira categoria a inventar.
+*/
+:root {
+  --grafico-1: #00897b;
+  --grafico-2: #d55e00;
+  --grafico-neutro: #9aa19c;
+  /* Grelha e eixos ficam recessivos: são referência, não são o dado. */
+  --grafico-grelha: #e7e4dd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /*
+      Escolhidas contra a superfície escura, e não clareadas a partir das de
+      cima. A banda de luminosidade do tema escuro é outra (0.48–0.67), e uma
+      inversão automática cai fora dela.
+    */
+    --grafico-1: #00a892;
+    --grafico-2: #e2703a;
+    --grafico-neutro: #6f766f;
+    --grafico-grelha: #2b322e;
+  }
+}
+
 /* Cores de capa dos quadros. */
 :root {
   --quadro-ardosia: #4a5a63;

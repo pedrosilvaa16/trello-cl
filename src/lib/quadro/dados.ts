@@ -1,11 +1,40 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { urlDeLeitura } from "@/lib/r2";
 import { criarClienteServidor } from "@/lib/supabase/servidor";
 import type { Cartao, PapelQuadro, Quadro } from "@/lib/supabase/tipos";
 
 import { porPosicao } from "../posicoes";
 import type { CartaoCompleto, DadosQuadro, MembroComPerfil } from "./tipos";
+
+/**
+ * O nome e o papel, e mais nada.
+ *
+ * Serve o `layout.tsx` do quadro, os `generateMetadata` e a página de
+ * estatísticas — três sítios que precisam de saber de que quadro se trata sem
+ * precisarem de um único cartão.
+ *
+ * O `cache()` do React não é um pormenor: sem ele, cada render do quadro fazia
+ * esta consulta três vezes, uma por cada um desses sítios. Com ele, é uma por
+ * pedido e as outras duas leem o resultado.
+ */
+export const carregarCabecalhoQuadro = cache(async function carregarCabecalhoQuadro(
+  idQuadro: string,
+): Promise<{ quadro: Quadro; papel: PapelQuadro } | null> {
+  const supabase = await criarClienteServidor();
+
+  const [{ data: quadro }, { data: papel }] = await Promise.all([
+    supabase.from("boards").select("*").eq("id", idQuadro).maybeSingle(),
+    supabase.rpc("papel_no_quadro", { board_id: idQuadro }),
+  ]);
+
+  // Nulo tanto para o quadro que não existe como para o que não é nosso — do
+  // lado de cá são indistinguíveis, e é assim que deve ser.
+  if (!quadro || !papel) return null;
+  return { quadro, papel: papel as PapelQuadro };
+});
 
 /**
  * Assina as imagens de destaque de um conjunto de quadros.

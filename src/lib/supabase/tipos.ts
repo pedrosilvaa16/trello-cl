@@ -36,6 +36,23 @@ export type Capa = {
   capa_texto: "claro" | "escuro";
 };
 
+/*
+  Estatísticas de redes sociais — secção 11 da especificação.
+
+  As quatro redes estão declaradas desde já, mesmo com o LinkedIn e o TikTok à
+  espera de aprovação: a base de dados já as aceita e o dia da aprovação não
+  deve precisar de migração nem de alteração de tipos.
+*/
+export type RedeSocial = "instagram" | "facebook" | "linkedin" | "tiktok";
+
+/**
+ * `expirada` é o estado que interessa: um painel de cliente a mostrar números
+ * velhos em silêncio é o pior modo de falha possível, e é isto que o evita.
+ */
+export type EstadoLigacao = "activa" | "expirada" | "erro" | "revogada";
+
+export type DimensaoDemografica = "genero" | "idade" | "pais" | "cidade";
+
 export type Database = {
   public: {
     Tables: {
@@ -363,6 +380,189 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      /* --------------------------------------- estatísticas de redes sociais */
+
+      /*
+        AVISO SOBRE OS `Insert` E `Update` DESTA SECÇÃO.
+
+        Ao contrário de `profiles` — onde a lista curta de colunas espelha o
+        que `authenticated` pode escrever — estas tabelas têm `insert`,
+        `update` e `delete` revogados de `authenticated` por inteiro. Quem
+        escreve é o sincronizador, com a `service_role`, e o tipo descreve
+        isso: o que a APLICAÇÃO pode fazer, não o que o browser pode.
+
+        Quem impede o browser é a base de dados, como sempre. Uma escrita
+        destas a partir de `criarClienteServidor()` compila e é recusada pelo
+        Postgres — que é exatamente onde essa decisão deve viver.
+      */
+
+      ligacoes_redes: {
+        Row: {
+          id: string;
+          board_id: string;
+          rede: RedeSocial;
+          conta_externa_id: string;
+          nome_conta: string;
+          avatar_url: string | null;
+          estado: EstadoLigacao;
+          erro: string | null;
+          expira_em: Timestamptz | null;
+          sincronizada_em: Timestamptz | null;
+          primeiro_dia: string | null;
+          ligado_por: string | null;
+          criado_em: Timestamptz;
+          atualizado_em: Timestamptz;
+        };
+        /*
+          Sem `Insert`: a linha nasce sempre por `definir_ligacao_rede`, que é
+          quem verifica `pode_gerir_quadro` e escreve no `acessos_log`. O
+          sincronizador só lhe toca no estado.
+        */
+        Insert: never;
+        Update: {
+          estado?: EstadoLigacao;
+          erro?: string | null;
+          expira_em?: Timestamptz | null;
+          sincronizada_em?: Timestamptz | null;
+          primeiro_dia?: string | null;
+        };
+        Relationships: [];
+      };
+
+      /*
+        Os tokens. Nem `Row` de leitura vale de muito aqui — a tabela tem RLS
+        ativa e política nenhuma, portanto uma leitura com a sessão de qualquer
+        pessoa devolve zero linhas. Só a `service_role` a vê.
+      */
+      ligacoes_segredos: {
+        Row: {
+          ligacao_id: string;
+          token_cifrado: string;
+          refresh_cifrado: string | null;
+          ambito: string | null;
+          atualizado_em: Timestamptz;
+        };
+        Insert: {
+          ligacao_id: string;
+          token_cifrado: string;
+          refresh_cifrado?: string | null;
+          ambito?: string | null;
+          atualizado_em?: Timestamptz;
+        };
+        Update: {
+          token_cifrado?: string;
+          refresh_cifrado?: string | null;
+          ambito?: string | null;
+          atualizado_em?: Timestamptz;
+        };
+        Relationships: [];
+      };
+
+      metricas_redes: {
+        Row: {
+          id: number;
+          ligacao_id: string;
+          board_id: string;
+          rede: RedeSocial;
+          /** Data ISO, sem hora: um retrato é de um dia, não de um instante. */
+          dia: string;
+          metrica: string;
+          valor: number;
+        };
+        /*
+          `board_id` e `rede` não estão aqui de propósito: quem os põe é o
+          trigger `metricas_redes_quadro`, a partir da ligação. É isso que
+          garante que nunca divergem — e mandá-los daqui seria oferecer a
+          hipótese de os pôr errados.
+        */
+        Insert: {
+          ligacao_id: string;
+          dia: string;
+          metrica: string;
+          valor: number;
+        };
+        Update: { valor?: number };
+        Relationships: [];
+      };
+
+      demografia_redes: {
+        Row: {
+          id: number;
+          ligacao_id: string;
+          board_id: string;
+          rede: RedeSocial;
+          dia: string;
+          dimensao: DimensaoDemografica;
+          grupo: string;
+          valor: number;
+        };
+        Insert: {
+          ligacao_id: string;
+          dia: string;
+          dimensao: DimensaoDemografica;
+          grupo: string;
+          valor: number;
+        };
+        Update: { valor?: number };
+        Relationships: [];
+      };
+
+      publicacoes_redes: {
+        Row: {
+          id: string;
+          ligacao_id: string;
+          board_id: string;
+          rede: RedeSocial;
+          id_externo: string;
+          publicado_em: Timestamptz;
+          tipo: string | null;
+          url: string | null;
+          miniatura_url: string | null;
+          legenda: string | null;
+          metricas: Record<string, number>;
+          atualizado_em: Timestamptz;
+        };
+        Insert: {
+          ligacao_id: string;
+          id_externo: string;
+          publicado_em: Timestamptz;
+          tipo?: string | null;
+          url?: string | null;
+          miniatura_url?: string | null;
+          legenda?: string | null;
+          metricas?: Record<string, number>;
+          atualizado_em?: Timestamptz;
+        };
+        Update: {
+          tipo?: string | null;
+          url?: string | null;
+          miniatura_url?: string | null;
+          legenda?: string | null;
+          metricas?: Record<string, number>;
+          atualizado_em?: Timestamptz;
+        };
+        Relationships: [];
+      };
+
+      sincronizacoes: {
+        Row: {
+          id: number;
+          ligacao_id: string;
+          iniciada_em: Timestamptz;
+          terminada_em: Timestamptz | null;
+          estado: "a_correr" | "concluida" | "falhou";
+          erro: string | null;
+          linhas: number;
+        };
+        Insert: { ligacao_id: string };
+        Update: {
+          terminada_em?: Timestamptz | null;
+          estado?: "a_correr" | "concluida" | "falhou";
+          erro?: string | null;
+          linhas?: number;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       /** Elenco da importação da Trello, com o que cada pessoa deixou atrás. */
@@ -380,6 +580,7 @@ export type Database = {
         };
         Relationships: [];
       };
+
     };
     Functions: {
       criar_quadro: {
@@ -602,10 +803,40 @@ export type Database = {
         Args: { p_token: string; p_utilizador: string };
         Returns: Database["public"]["Tables"]["convites"]["Row"];
       };
+      definir_ligacao_rede: {
+        Args: {
+          p_quadro: string;
+          p_rede: RedeSocial;
+          p_conta: string;
+          p_nome: string;
+          p_avatar?: string | null;
+          p_expira_em?: Timestamptz | null;
+        };
+        /** O id da ligação — é dele que a rota precisa para gravar o token. */
+        Returns: string;
+      };
+      remover_ligacao_rede: {
+        Args: { p_ligacao: string };
+        Returns: boolean;
+      };
+      /*
+        Só corre com a `service_role` — tem o EXECUTE revogado até de
+        `authenticated`. Está declarada porque o sincronizador a chama; do
+        browser compila e leva 42501 do Postgres, que é onde essa decisão vive.
+      */
+      marcar_estado_ligacao: {
+        Args: {
+          p_ligacao: string;
+          p_estado: EstadoLigacao;
+          p_erro?: string | null;
+        };
+        Returns: void;
+      };
     };
     Enums: {
       papel_quadro: PapelQuadro;
       papel_global: PapelGlobal;
+      rede_social: RedeSocial;
     };
     CompositeTypes: Record<never, never>;
   };
@@ -749,3 +980,11 @@ export type Anexo = Database["public"]["Tables"]["attachments"]["Row"];
 export type Convite = Database["public"]["Tables"]["convites"]["Row"];
 export type AcessoCartao = Database["public"]["Tables"]["card_access"]["Row"];
 export type RegistoAcesso = Database["public"]["Tables"]["acessos_log"]["Row"];
+export type LigacaoRede = Database["public"]["Tables"]["ligacoes_redes"]["Row"];
+export type MetricaRede = Database["public"]["Tables"]["metricas_redes"]["Row"];
+export type DemografiaRede =
+  Database["public"]["Tables"]["demografia_redes"]["Row"];
+export type PublicacaoRede =
+  Database["public"]["Tables"]["publicacoes_redes"]["Row"];
+export type Sincronizacao =
+  Database["public"]["Tables"]["sincronizacoes"]["Row"];
