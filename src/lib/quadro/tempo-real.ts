@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { criarClienteNavegador } from "../supabase/navegador";
+import { subscreverAutenticado } from "../supabase/tempo-real";
 import type { Cartao, Etiqueta, Lista } from "../supabase/tipos";
 import type { AccaoQuadro } from "./estado";
 
@@ -112,11 +113,18 @@ export function useTempoReal(
             ligar: payload.eventType !== "DELETE",
           });
         },
-      )
-      .subscribe();
+      );
 
-    return () => {
-      supabase.removeChannel(canal);
-    };
+    /*
+      `subscreverAutenticado` e não `.subscribe()` direto.
+
+      A sessão do `createBrowserClient` vem dos cookies e resolve-se de forma
+      assíncrona; subscrever no primeiro render subscrevia antes de o token
+      chegar ao socket, e o Realtime passava a avaliar as políticas como se
+      fosse um visitante anónimo. O canal ligava na mesma e os eventos chegavam
+      na mesma — todos com o registo vazio e um 401 no `errors` que ninguém
+      lia. O quadro parecia sincronizado e nunca sincronizou nada.
+    */
+    return subscreverAutenticado(supabase, canal);
   }, [idQuadro, despachar]);
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Marca } from "@/components/marca";
+import { NavegacaoPrincipal } from "@/components/navegacao";
 import { criarClienteServidor } from "@/lib/supabase/servidor";
 import type { Perfil } from "@/lib/supabase/tipos";
 
@@ -51,6 +52,23 @@ export async function Cabecalho({
       >
         <Marca className="h-4 sm:h-[18px]" />
       </Link>
+
+      {/*
+        As secções de topo. Só para a equipa da casa: um cliente tem um quadro
+        e mais nada, e duas secções para escolher entre uma coisa e outra a que
+        não tem acesso é ruído com um cadeado escondido lá dentro.
+      */}
+      {gerePessoas && (
+        <>
+          <NavegacaoPrincipal />
+          {children && (
+            <span
+              className="h-5 w-px shrink-0 bg-borda max-sm:hidden"
+              aria-hidden
+            />
+          )}
+        </>
+      )}
 
       {children}
 

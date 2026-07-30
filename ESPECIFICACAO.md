@@ -475,3 +475,165 @@ um cliente ou um freelancer **não sabem que o separador existe**.
 
 - **Nada do que a aba produz fica a viver na aba.** A aba é onde o contexto se
   cura; o quadro é onde o trabalho acontece.
+
+---
+
+## 13. Separador «Tarefas» — o trabalho da casa
+
+Acrescentado depois da secção 12. É um separador **de topo**, ao lado de
+Quadros, e não um separador dentro de um quadro. Essa é a decisão que manda em
+todas as outras.
+
+Até aqui, tudo na plataforma pendurava num quadro — e um quadro é um cliente.
+Faltava o outro trabalho: o que a equipa da casa tem para fazer e que não é de
+cliente nenhum. Faturas, propostas, candidaturas, o que for.
+
+### Porque é que isto não é um quadro chamado «Interno»
+
+Resolvia à primeira vista e partia à segunda. O RLS dos quadros existe para um
+cliente ver o quadro dele; uma lista de quadros com um intruso lá no meio é uma
+exceção que se paga em todo o lado a seguir — no filtro da página inicial, nos
+convites, nos acessos por cartão, na página de cada pessoa.
+
+Por isso: **tabelas próprias, hierarquia própria, funções de acesso próprias.**
+`tarefa_espacos`, `tarefa_listas`, `tarefas` e `tarefa_responsaveis` não têm
+uma única chave estrangeira para `boards`, `cards` ou `lists`. Não é omissão, é
+a característica principal do desenho — e há um teste em `08_tarefas.sql` que
+falha se alguém acrescentar uma.
+
+### Quem vê
+
+`super_admin` e `admin` — o eixo A, e só o eixo A. Uma regra, uma função:
+`pode_gerir_tarefas()`, que todas as políticas usam e que a página chama antes
+de renderizar seja o que for.
+
+Entre gestores **não há níveis**. São duas ou três pessoas a organizar o
+trabalho da casa, e inventar `gestor`/`editor`/`leitor` aqui dentro era
+construir uma hierarquia que ninguém pediu para depois ter de a manter.
+
+Para um cliente ou um freelancer o separador **não existe**: não é construído
+no cabeçalho, e `/tarefas` responde **404 e nunca 403** — mesma regra da secção
+12, e pela mesma razão.
+
+### Hierarquia e campos
+
+```
+tarefa_espacos    id, nome, cor, posicao, arquivado
+tarefa_listas     id, espaco_id, nome, posicao, arquivada
+tarefas           id, lista_id, espaco_id, mae_id, titulo, descricao,
+                  estado, prioridade, data_inicio, data_limite,
+                  posicao, arquivada, criado_por, criado_em, atualizado_em
+tarefa_responsaveis  tarefa_id, user_id
+```
+
+- **`estado` é um enum fixo** — `por_fazer`, `em_curso`, `bloqueada`,
+  `concluida` — e não configurável por lista. Estados livres fazem com que duas
+  listas deixem de ser comparáveis, e a vista de agenda junta tarefas de sítios
+  diferentes: não saberia o que «Em revisão» quer dizer ao lado de «A
+  aguardar». `bloqueada` está lá porque é a única que muda o que se faz a
+  seguir.
+- **`prioridade` é anulável.** Obrigar a escolher faz com que tudo acabe em
+  «média», e uma coluna onde tudo tem o mesmo valor não ordena nada.
+- **Duas datas.** A de início separa «entrego na sexta» de «começo na quarta»;
+  sem ela, tudo o que tem prazo aparece a gritar no mesmo dia.
+- **`espaco_id` é desnormalizado por trigger**, como `cards.board_id`, e está
+  fora do `GRANT` de UPDATE — junto com `atualizado_em`, pela mesma técnica que
+  `cards.capa_*` usa.
+- **Subtarefas: um nível, e na mesma lista da mãe.** Não é preguiça — é o que
+  dispensa correr atrás de ciclos. Com um nível a regra é uma pergunta só («a
+  minha mãe já tem mãe?»); com N é uma travessia recursiva a cada gravação, e o
+  dia em que alguém puser A dentro de B dentro de A a interface entra em ciclo
+  a desenhar.
+- **Arquivar não é concluir.** Concluída é «fez-se»; arquivada é «decidiu-se
+  não fazer». Confundi-las dá uma métrica de trabalho feito que conta o que se
+  desistiu de fazer.
+
+### A vista de agenda
+
+Seis grupos: **Atrasado, Hoje, Esta semana, Este mês, Futuros, Sem data**.
+
+- Os grupos comparam **dias de calendário**, não instantes. Uma tarefa marcada
+  para hoje às 09:00, vista às 15:00, fica em «Hoje» e não salta para
+  «Atrasado» ao almoço. O emblema ao lado — esse sim, pelo relógio — já diz que
+  passou da hora. O grupo responde a «que dia é isto», o emblema a «ainda vou a
+  tempo».
+- A semana ganha ao mês quando as duas apanham a mesma data.
+- **Ao domingo, «esta semana» é a que está prestes a começar.** O fim da semana
+  de calendário é o próprio domingo, e sem este cuidado o grupo ficava sempre
+  vazio e a tarefa de amanhã caía em «Este mês» — inútil precisamente no dia em
+  que alguém abre a agenda para planear a semana.
+- **Os grupos vazios ficam**, com uma frase em vez de nada. Um grupo que
+  desaparece ao esvaziar faz a lista saltar por baixo do cursor e tira a
+  resposta à pergunta que se foi lá fazer.
+- O relógio que decide tudo isto vem do servidor no primeiro render e passa a
+  andar de minuto a minuto depois de montar — sem isso, o HTML do servidor e o
+  do browser divergiam à volta da meia-noite.
+
+### Duas armadilhas que só se veem a correr
+
+- **`profiles` tem RLS.** Uma política que consulte a tabela diretamente é
+  avaliada com a sessão de quem escreve, e `partilha_quadro` só deixa ver o
+  perfil de quem partilha um quadro connosco. Duas gestoras que não partilhem
+  nenhum quadro não se veem — atribuir uma tarefa a uma colega era recusado, e
+  o seletor de responsáveis aparecia quase vazio, nenhum dos dois a dizer
+  porquê. Daí `e_da_equipa()` e `equipa_da_casa()`, ambas SECURITY DEFINER e
+  ambas com a mesma condição, para a interface nunca oferecer um nome que o
+  servidor recusa.
+- **Os privilégios por omissão do Supabase dão `authenticated` tudo sobre cada
+  tabela nova.** Um `grant update (colunas)` por cima disso não restringe nada:
+  as duas autorizações somam-se. Sem o `revoke all` antes, o fecho por coluna
+  era decorativo.
+
+### Documentos
+
+Acrescentado logo a seguir. Cada tarefa aceita ficheiros, pelo mesmo caminho
+que os anexos dos quadros: o browser envia direto para o R2 com um URL de
+escrita assinado no servidor, e a leitura é sempre por URL assinado de validade
+curta. Limite de 200 MB por ficheiro, como nos quadros.
+
+- **O mesmo bucket, prefixo diferente** (`tarefas/{espaco}/{tarefa}/…`). Um
+  segundo bucket não acrescentaria segurança nenhuma — o R2 não tem RLS, o
+  bucket já é privado e nada nele é servido diretamente; quem impõe a permissão
+  é o servidor, que só assina depois de a confirmar. Seriam duas credenciais e
+  duas configurações de CORS para a mesma garantia.
+- **Tabela própria** (`tarefa_anexos`). `attachments` tem `card_id not null` a
+  apontar para `cards`, e pô-la a servir dois donos obrigava a torná-la
+  anulável e a acrescentar um CHECK «ou um ou outro».
+- **A chave do objeto nunca vem do cliente**, e isso é fechado dos dois lados: a
+  rota decide-a, e o trigger `tarefa_anexos_caminho_no_sitio` recusa, na base de
+  dados, qualquer linha cujo caminho não caia debaixo da tarefa a que diz
+  pertencer. Sem essa segunda metade, uma linha podia dizer «sou da tarefa A» e
+  apontar para o ficheiro da tarefa B — e a rota de leitura assina o que a linha
+  disser.
+
+### O tempo real, e um erro que era de toda a aplicação
+
+A sincronização entre separadores foi medida a sério: uma tarefa criada num
+separador aparece no outro em **menos de um segundo**, e fechá-la chega igual —
+dentro dos dois segundos que a Fase 4 exige.
+
+Chegar lá obrigou a corrigir um erro que **não era das tarefas**: o canal era
+subscrito antes de o token da sessão chegar ao socket. O `createBrowserClient`
+lê a sessão dos cookies de forma assíncrona, e quem chama `.subscribe()` no
+primeiro render subscreve como visitante anónimo. O Realtime avalia as
+políticas com as credenciais que o socket tinha nesse momento — e o que devolve
+não é um erro, é pior: o canal liga, os eventos chegam, e cada um vem com o
+registo vazio e um `errors: ["Error 401: Unauthorized"]` que ninguém lê. Parece
+montado e nunca sincronizou nada.
+
+Estava assim **desde sempre, também nos quadros**. A correção é
+`subscreverAutenticado` (`src/lib/supabase/tempo-real.ts`): `setAuth` antes de
+`subscribe`, num sítio só, usado pelos dois.
+
+A outra metade corrigiu-se no cliente: um registo vazio entrava no estado, ia
+parar ao `sort` e rebentava em `porPosicao` a comparar um `id` que não existia —
+ecrã branco por causa de uma mensagem que devia ter sido ignorada. **Nenhuma
+mensagem vinda de fora pode derrubar a página**, e há testes a guardar isso.
+
+### Fora de âmbito, para já
+
+Comentários e histórico por tarefa, etiquetas, pesquisa, vista de quadro
+(kanban) com arrasto e lembretes. A ordenação já é fracionária (`posicao`), mas
+**não há função de reequilíbrio** — ela só faz falta quando se inserir *entre*
+duas posições, e isso só existe com arrasto. Entra no dia em que o arrasto
+entrar: código que nada chama é código que ninguém testa.

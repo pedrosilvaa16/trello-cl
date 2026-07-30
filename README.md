@@ -280,6 +280,22 @@ que não podia ler.
 utilizador também chega ao canal. Quem o descarta é o reducer, que é onde o
 estado atual está — assim o efeito não depende do estado e subscreve uma só vez.
 
+**`setAuth` antes de `subscribe`, sempre.** É o que
+`subscreverAutenticado` (`src/lib/supabase/tempo-real.ts`) garante, e é a razão
+de os dois canais — o do quadro e o das tarefas — passarem por lá em vez de
+chamarem `.subscribe()` direto.
+
+O Realtime avalia as políticas com as credenciais que o socket tinha **no
+momento em que a subscrição foi criada**. A sessão do `createBrowserClient` vem
+dos cookies e resolve-se de forma assíncrona: quem subscreve no primeiro render
+subscreve como visitante anónimo. E o modo de falha é o pior possível — o canal
+liga («SUBSCRIBED»), os eventos chegam, e cada um vem com o registo **vazio** e
+um `errors: ["Error 401: Unauthorized"]` que ninguém está a ler. Parece montado
+e nunca sincronizou nada.
+
+Esteve assim desde o princípio, e só se deu por isso ao medir com dois
+separadores abertos. Se um dia voltar a acontecer, é aqui que se olha primeiro.
+
 ### Anexos, no Cloudflare R2
 
 Os ficheiros vivem num bucket privado do R2, não no Supabase Storage. A troca
@@ -370,6 +386,57 @@ servidor com a `service_role`, em [`src/app/convite/`](src/app/convite/). Se o
 resgate falhar depois de a conta ser criada, a conta é apagada — mais vale não
 existir do que ficar um utilizador sem quadro nenhum e um convite que ainda
 parece válido.
+
+---
+
+## O separador «Tarefas»
+
+O trabalho interno da equipa, fora dos quadros dos clientes. Vive em
+`/tarefas`, é um separador de topo ao lado de Quadros, e **só existe para
+`super_admin` e `admin`** — para um cliente ou um freelancer não é construído,
+e a rota responde 404 e nunca 403.
+
+Não toca em `boards` nem em `cards`: quatro tabelas próprias
+(`tarefa_espacos`, `tarefa_listas`, `tarefas`, `tarefa_responsaveis`), sem uma
+única chave estrangeira para o lado dos quadros. Um quadro é um cliente; o
+trabalho da casa não é de cliente nenhum.
+
+Hierarquia: **espaço → lista → tarefa**, com subtarefas a um nível.
+
+A vista de agenda agrupa por *dia de calendário* — Atrasado, Hoje, Esta semana,
+Este mês, Futuros, Sem data —, e não pelo relógio: uma tarefa marcada para hoje
+às 09:00, vista às 15:00, fica em «Hoje». Quem diz que passou da hora é o
+emblema ao lado dela.
+
+Duas coisas que só se descobrem a correr, e que estão documentadas na secção 13
+da especificação porque custaram tempo:
+
+- `profiles` tem RLS, e duas gestoras que não partilhem quadro nenhum não se
+  veem uma à outra. Daí `e_da_equipa()` e `equipa_da_casa()`, ambas SECURITY
+  DEFINER — sem elas, o seletor de responsáveis aparece quase vazio e atribuir
+  uma tarefa a uma colega é recusado, sem nada a explicar porquê.
+- Os privilégios por omissão do Supabase dão `authenticated` tudo sobre cada
+  tabela nova. Sem um `revoke all` antes, o `grant update (colunas)` não
+  restringe coisa nenhuma — as duas autorizações somam-se.
+
+**Documentos.** Cada tarefa aceita ficheiros, pelo mesmo caminho dos anexos dos
+quadros: envio direto do browser para o R2 com URL de escrita assinado no
+servidor, leitura por URL assinado de validade curta, 200 MB por ficheiro. É o
+**mesmo bucket**, com o prefixo `tarefas/{espaco}/{tarefa}/…` — não é preciso
+bucket nem chave nova, porque o bucket já é privado e quem impõe a permissão é
+o servidor, não o armazenamento. A chave nunca vem do cliente, e isso está
+fechado dos dois lados: a rota decide-a e o trigger
+`tarefa_anexos_caminho_no_sitio` recusa qualquer linha cujo caminho não caia
+debaixo da tarefa a que diz pertencer.
+
+Se o envio falhar no browser com um erro de CORS, é o bucket que não conhece a
+origem — `npm run r2:cors -- --ver` confirma, e `npm run r2:cors` aplica.
+
+Testes: `supabase/tests/08_tarefas.sql` (RLS, colunas fechadas, subtarefas,
+responsáveis, documentos e caminhos forjados), `src/lib/tarefas/agenda.test.ts`
+(os baldes por data, incluindo o caso do domingo) e
+`src/lib/tarefas/estado.test.ts` (o reducer, incluindo payloads vazios do canal
+de tempo real). Correm com `npm run bd:testar` e `npm test`.
 
 ---
 
@@ -481,8 +548,10 @@ src/app/                Rotas: entrar, convite, quadro, cartão, pessoas, api
 src/components/ui/      Primitivas (botão, diálogo, menu, avatar…)
 src/components/quadro/  O quadro: colunas, cartões, detalhe, filtros, membros
 src/components/pessoas/ O painel de acessos e o cartão visto sem o quadro
+src/components/tarefas/ O separador «Tarefas»: barra lateral, agenda, detalhe
 src/lib/acessos.ts      Autorização das rotas de gestão, no servidor
 src/lib/quadro/         Estado, mutações, filtros, tempo real
+src/lib/tarefas/        Trabalho interno: baldes da agenda, vistas, estado
 src/lib/redes/          Fornecedores das redes, cifra dos tokens, sincronização
 src/lib/estatisticas/   Agregação das métricas, dados de demonstração
 src/components/estatisticas/  O painel e os gráficos (SVG próprio, sem biblioteca)

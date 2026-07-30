@@ -55,8 +55,12 @@ export const VALIDADE_LEITURA = 60 * 60;
 /** Quinze minutos chegam para começar um envio; o upload em si pode demorar mais. */
 export const VALIDADE_ESCRITA = 15 * 60;
 
-/** 200 MB — o mesmo limite que a restrição da tabela impõe. */
-export const LIMITE_BYTES = 209715200;
+/*
+  Reexportado, não redeclarado: o valor vive em `lib/limites.ts`, que o browser
+  também pode importar. Duas cópias do mesmo número acabam sempre com uma delas
+  desatualizada, e a que falha primeiro é a do lado que não se testou.
+*/
+export { LIMITE_BYTES } from "./limites";
 
 /**
  * O instante da assinatura, arredondado para baixo em janelas de 15 minutos.
@@ -135,6 +139,25 @@ export function chaveDoAnexo(
   nomeFicheiro: string,
 ) {
   return `boards/${idQuadro}/cards/${idCartao}/${idAnexo}-${nomeSeguro(nomeFicheiro)}`;
+}
+
+/**
+ * A chave de um anexo de uma tarefa interna.
+ *
+ * Mesmo bucket dos quadros, prefixo `tarefas/` — ver a migração
+ * 20260730140000. O formato não é livre: o trigger
+ * `tarefa_anexos_caminho_no_sitio` recusa, na base de dados, qualquer linha
+ * cuja chave não caia debaixo da tarefa a que diz pertencer. Mudar o formato
+ * aqui sem mudar lá parte os envios todos — e é isso que se quer, em vez de
+ * ficarem a apontar para sítios errados em silêncio.
+ */
+export function chaveDoAnexoDeTarefa(
+  idEspaco: string,
+  idTarefa: string,
+  idAnexo: string,
+  nomeFicheiro: string,
+) {
+  return `tarefas/${idEspaco}/${idTarefa}/${idAnexo}-${nomeSeguro(nomeFicheiro)}`;
 }
 
 /**

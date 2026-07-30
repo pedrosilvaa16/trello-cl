@@ -64,6 +64,24 @@ export type EstadoLigacao = "activa" | "expirada" | "erro" | "revogada";
 
 export type DimensaoDemografica = "genero" | "idade" | "pais" | "cidade";
 
+/*
+  Separador «Tarefas» — a organização interna da equipa, secção 13.
+
+  Não toca em `boards` nem em `cards`: um quadro é um cliente, e o trabalho da
+  casa não é de cliente nenhum. Quem entra é `super_admin` ou `admin`, e essa é
+  a única regra que existe aqui dentro.
+*/
+
+/** Fixo de propósito: vistas que juntam listas diferentes precisam de estados comparáveis. */
+export type EstadoTarefa =
+  | "por_fazer"
+  | "em_curso"
+  | "bloqueada"
+  | "concluida";
+
+/** Anulável na tarefa: nulo é "ninguém decidiu", que é o caso mais comum. */
+export type PrioridadeTarefa = "urgente" | "alta" | "media" | "baixa";
+
 export type Database = {
   public: {
     Tables: {
@@ -629,6 +647,163 @@ export type Database = {
         };
         Relationships: [];
       };
+      /* ---------------------------------------------- separador «Tarefas» */
+
+      /*
+        As quatro tabelas do trabalho interno. RLS com uma regra só, igual
+        para ler e para escrever: `pode_gerir_tarefas()`.
+      */
+      tarefa_espacos: {
+        Row: {
+          id: string;
+          nome: string;
+          /** Nome da paleta de etiquetas ('verde', 'azul'…), nunca hexadecimal. */
+          cor: CorEtiqueta;
+          posicao: number;
+          arquivado: boolean;
+          criado_por: string | null;
+          criado_em: Timestamptz;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          cor?: CorEtiqueta;
+          posicao: number;
+          arquivado?: boolean;
+          criado_por?: string | null;
+        };
+        Update: {
+          nome?: string;
+          cor?: CorEtiqueta;
+          posicao?: number;
+          arquivado?: boolean;
+        };
+        Relationships: [];
+      };
+      tarefa_listas: {
+        Row: {
+          id: string;
+          espaco_id: string;
+          nome: string;
+          posicao: number;
+          arquivada: boolean;
+          criado_por: string | null;
+          criado_em: Timestamptz;
+        };
+        Insert: {
+          id?: string;
+          espaco_id: string;
+          nome: string;
+          posicao: number;
+          arquivada?: boolean;
+          criado_por?: string | null;
+        };
+        Update: {
+          espaco_id?: string;
+          nome?: string;
+          posicao?: number;
+          arquivada?: boolean;
+        };
+        Relationships: [];
+      };
+      tarefas: {
+        Row: {
+          id: string;
+          lista_id: string;
+          /** Cópia de tarefa_listas.espaco_id, mantida por trigger. */
+          espaco_id: string;
+          /** A tarefa de que esta é subtarefa. Um nível só. */
+          mae_id: string | null;
+          titulo: string;
+          descricao: string | null;
+          estado: EstadoTarefa;
+          prioridade: PrioridadeTarefa | null;
+          data_inicio: Timestamptz | null;
+          data_limite: Timestamptz | null;
+          posicao: number;
+          arquivada: boolean;
+          criado_por: string | null;
+          criado_em: Timestamptz;
+          atualizado_em: Timestamptz;
+        };
+        /*
+          `espaco_id` e `atualizado_em` não estão aqui, e não é esquecimento:
+          são mantidos por trigger e o GRANT de coluna na base de dados recusa
+          que sejam escritos. Pô-los aqui era prometer uma escrita que o
+          servidor não deixa acontecer.
+        */
+        Insert: {
+          id?: string;
+          lista_id: string;
+          mae_id?: string | null;
+          titulo: string;
+          descricao?: string | null;
+          estado?: EstadoTarefa;
+          prioridade?: PrioridadeTarefa | null;
+          data_inicio?: Timestamptz | null;
+          data_limite?: Timestamptz | null;
+          posicao: number;
+          arquivada?: boolean;
+          criado_por?: string | null;
+        };
+        /** `criado_por` fica de fora: quem criou uma tarefa não muda depois. */
+        Update: {
+          lista_id?: string;
+          mae_id?: string | null;
+          titulo?: string;
+          descricao?: string | null;
+          estado?: EstadoTarefa;
+          prioridade?: PrioridadeTarefa | null;
+          data_inicio?: Timestamptz | null;
+          data_limite?: Timestamptz | null;
+          posicao?: number;
+          arquivada?: boolean;
+        };
+        Relationships: [];
+      };
+      /** Põe-se e tira-se; não há nada nesta linha para alterar. */
+      tarefa_responsaveis: {
+        Row: { tarefa_id: string; user_id: string; criado_em: Timestamptz };
+        Insert: { tarefa_id: string; user_id: string };
+        Update: never;
+        Relationships: [];
+      };
+      /*
+        Documentos das tarefas. Mesmo bucket R2 dos quadros, prefixo
+        `tarefas/` — ver a migração 20260730140000.
+      */
+      tarefa_anexos: {
+        Row: {
+          id: string;
+          tarefa_id: string;
+          nome_ficheiro: string;
+          caminho_storage: string;
+          tamanho_bytes: number;
+          tipo_mime: string;
+          carregado_por: string | null;
+          criado_em: Timestamptz;
+        };
+        /*
+          `caminho_storage` entra porque é o cliente que insere a linha depois
+          de o ficheiro subir — mas o valor vem da rota que autorizou o envio,
+          nunca do browser. Quem garante isso é o trigger
+          `tarefa_anexos_caminho_no_sitio`, que recusa qualquer chave que não
+          caia debaixo da tarefa a que a linha diz pertencer.
+        */
+        Insert: {
+          id?: string;
+          tarefa_id: string;
+          nome_ficheiro: string;
+          caminho_storage: string;
+          tamanho_bytes: number;
+          tipo_mime: string;
+          carregado_por: string;
+        };
+        /** Um anexo carrega-se e remove-se. Não há UPDATE, nem política nem GRANT. */
+        Update: never;
+        Relationships: [];
+      };
+
       /*
         Preparada agora, usada quando o modelo entrar. O gerador simulado já
         escreve aqui como o real escreverá, para a persistência estar testada
@@ -753,6 +928,36 @@ export type Database = {
       e_admin_algures: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      /** A única regra do separador «Tarefas»: super_admin ou admin, conta ativa. */
+      pode_gerir_tarefas: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      e_da_equipa: {
+        Args: { p_pessoa: string };
+        Returns: boolean;
+      };
+      /*
+        Existe porque `profiles` tem RLS: um `select` direto devolveria só quem
+        partilha um quadro com quem pergunta, e o seletor de responsáveis
+        apareceria quase vazio. Ver a migração 20260730090000.
+      */
+      equipa_da_casa: {
+        Args: Record<string, never>;
+        Returns: { id: string; nome: string; avatar_url: string | null }[];
+      };
+      posicao_fim_espacos: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      posicao_fim_listas: {
+        Args: { p_espaco: string };
+        Returns: number;
+      };
+      posicao_fim_lista_tarefas: {
+        Args: { p_lista: string };
+        Returns: number;
       };
       super_admins_activos: {
         Args: Record<string, never>;
@@ -956,6 +1161,8 @@ export type Database = {
       papel_quadro: PapelQuadro;
       papel_global: PapelGlobal;
       rede_social: RedeSocial;
+      estado_tarefa: EstadoTarefa;
+      prioridade_tarefa: PrioridadeTarefa;
     };
     CompositeTypes: Record<never, never>;
   };
@@ -1107,3 +1314,9 @@ export type PublicacaoRede =
   Database["public"]["Tables"]["publicacoes_redes"]["Row"];
 export type Sincronizacao =
   Database["public"]["Tables"]["sincronizacoes"]["Row"];
+export type EspacoTarefas =
+  Database["public"]["Tables"]["tarefa_espacos"]["Row"];
+export type ListaTarefas =
+  Database["public"]["Tables"]["tarefa_listas"]["Row"];
+export type Tarefa = Database["public"]["Tables"]["tarefas"]["Row"];
+export type AnexoTarefa = Database["public"]["Tables"]["tarefa_anexos"]["Row"];
